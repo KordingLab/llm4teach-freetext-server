@@ -300,12 +300,19 @@ async def get_feedback(
         A list of feedback objects.
 
     """
+    # default_assignment = Assignment(
+    #     student_prompt="",
+    #     feedback_instructions="Determine if the author has met the following criteria for explaining what a neuron is.",
+    #     feedback_requirements=[
+    #         "Must include the terms 'synapse' and 'action potential'.",
+    #         "Must mention the role of neurotransmitters.",
+    #     ],
+    # )
     default_assignment = Assignment(
         student_prompt="",
-        feedback_instructions="Determine if the author has met the following criteria for explaining what a neuron is.",
+        feedback_instructions="The student must explain the difference between a list and a tuple.",
         feedback_requirements=[
-            "Must include the terms 'synapse' and 'action potential'.",
-            "Must mention the role of neurotransmitters.",
+            "Must mention immutability and indicate which is which."
         ],
     )
     return await commons.feedback_router.get_feedback(submission, default_assignment)
