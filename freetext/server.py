@@ -1,4 +1,6 @@
+import json
 from functools import lru_cache
+import os
 from typing import Protocol, Annotated
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, APIRouter, Depends
@@ -206,6 +208,199 @@ class EdgeGPTFeedbackProvider(FeedbackProvider):
         ]
 
 
+class AssignmentStore(Protocol):
+    """
+    A class that handles storing assignments (and later, submissions.)
+    """
+
+    def __getitem__(self, key: str) -> Assignment:
+        """
+        Returns the assignment with the given ID.
+
+        """
+
+        raise NotImplementedError()
+
+    def __setitem__(self, key: str, value: Assignment) -> None:
+        """
+        Sets the assignment with the given ID.
+
+        """
+        raise NotImplementedError()
+
+    def __delitem__(self, key: str) -> None:
+        """
+        Deletes the assignment with the given ID.
+
+        """
+        raise NotImplementedError()
+
+    def __iter__(self) -> list[str]:
+        """
+        Returns a list of all assignment IDs.
+
+        """
+        raise NotImplementedError()
+
+    def __len__(self) -> int:
+        """
+        Returns the number of assignments.
+
+        """
+        raise NotImplementedError()
+
+    def __contains__(self, key: str) -> bool:
+        """
+        Returns whether the given assignment ID is in the AssignmentStore.
+
+        """
+        raise NotImplementedError()
+
+
+class InMemoryAssignmentStore(AssignmentStore):
+    """
+    An in-memory AssignmentStore that stores assignments in a dictionary.
+
+    """
+
+    def __init__(self):
+        self._assignments = {}
+
+    def __getitem__(self, key: str) -> Assignment:
+        """
+        Returns the assignment with the given ID.
+
+        """
+
+        return self._assignments[key]
+
+    def __setitem__(self, key: str, value: Assignment) -> None:
+        """
+        Sets the assignment with the given ID.
+
+        """
+
+        self._assignments[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        """
+        Deletes the assignment with the given ID.
+
+        """
+
+        del self._assignments[key]
+
+    def __iter__(self) -> list[str]:
+        """
+        Returns a list of all assignment IDs.
+
+        """
+
+        return list(self._assignments.keys())
+
+    def __len__(self) -> int:
+        """
+        Returns the number of assignments.
+
+        """
+
+        return len(self._assignments)
+
+    def __contains__(self, key: str) -> bool:
+        """
+        Returns whether the given assignment ID is in the AssignmentStore.
+
+        """
+
+        return key in self._assignments
+
+
+class JSONFileAssignmentStore(AssignmentStore):
+    """
+    A AssignmentStore that stores assignments in a JSON file.
+
+    """
+
+    def __init__(self, filename: str):
+        self._filename = filename
+        # Create the file if it doesn't exist
+        if not os.path.exists(self._filename):
+            with open(self._filename, "w") as f:
+                json.dump({}, f)
+
+    def __getitem__(self, key: str) -> Assignment:
+        """
+        Returns the assignment with the given ID.
+
+        """
+
+        with open(self._filename, "r") as f:
+            assignments = json.load(f)
+
+        return assignments[key]
+
+    def __setitem__(self, key: str, value: Assignment) -> None:
+        """
+        Sets the assignment with the given ID.
+
+        """
+
+        with open(self._filename, "r") as f:
+            assignments = json.load(f)
+
+        assignments[key] = value
+
+        with open(self._filename, "w") as f:
+            json.dump(assignments, f)
+
+    def __delitem__(self, key: str) -> None:
+        """
+        Deletes the assignment with the given ID.
+
+        """
+
+        with open(self._filename, "r") as f:
+            assignments = json.load(f)
+
+        del assignments[key]
+
+        with open(self._filename, "w") as f:
+            json.dump(assignments, f)
+
+    def __iter__(self) -> list[str]:
+        """
+        Returns a list of all assignment IDs.
+
+        """
+
+        with open(self._filename, "r") as f:
+            assignments = json.load(f)
+
+        return list(assignments.keys())
+
+    def __len__(self) -> int:
+        """
+        Returns the number of assignments.
+
+        """
+
+        with open(self._filename, "r") as f:
+            assignments = json.load(f)
+
+        return len(assignments)
+
+    def __contains__(self, key: str) -> bool:
+        """
+        Returns whether the given assignment ID is in the AssignmentStore.
+
+        """
+
+        with open(self._filename, "r") as f:
+            assignments = json.load(f)
+
+        return key in assignments
+
+
 class FeedbackRouter:
     """
     A router handles multiple feedback providers and returns aggregated
@@ -213,11 +408,16 @@ class FeedbackRouter:
 
     """
 
-    def __init__(self, feedback_providers: list[FeedbackProvider] | None = None):
+    def __init__(
+        self,
+        feedback_providers: list[FeedbackProvider] | None = None,
+        assignment_store: AssignmentStore | None = None,
+    ):
         """
         Create a new feedback router, with an optional list of providers.
         """
         self._feedback_providers = feedback_providers or []
+        self._assignment_store = assignment_store or InMemoryAssignmentStore()
 
     def add_feedback_provider(self, feedback_provider: FeedbackProvider) -> None:
         """
@@ -268,7 +468,8 @@ def get_commons():
                 DummyFeedbackProvider("This is a dummy feedback provider."),
                 UnderTenWordFinder(),
                 EdgeGPTFeedbackProvider(),
-            ]
+            ],
+            assignment_store=JSONFileAssignmentStore("assignments.json"),
         )
     )
 
