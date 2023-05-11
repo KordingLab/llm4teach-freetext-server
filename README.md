@@ -34,6 +34,11 @@ Explain what a neuron is, detailing how they transmit information and what uniqu
 
 Neurons are cells that transmit information to other nerve, muscle, or gland cells. They use synapses.
 
+##### Feedback Requirements (Hidden from student, shown to LLM)
+
+-   Must include the terms 'synapse' and 'action potential'.
+-   Must mention the role of neurotransmitters.
+
 ##### Feedback (Auto-Generated)
 
 -   The author did not mention the role of neurotransmitters. The author should include a sentence or two explaining the role of neurotransmitters in the transmission of information between neurons.
