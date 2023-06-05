@@ -4,23 +4,22 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from freetext.assignment_stores import (
+from .assignment_stores import (
     AssignmentStore,
     InMemoryAssignmentStore,
-    JSONFileAssignmentStore,
+    # JSONFileAssignmentStore,
 )
-from freetext.assignment_stores.DynamoAssignmentStore import DynamoAssignmentStore
-from freetext.config import ApplicationSettings
-from .feedback_providers.OpenAIFeedbackProvider import OpenAIFeedbackProvider
-from freetext.response_stores import (
-    InMemoryResponseStore,
-    JSONFileResponseStore,
+from .assignment_stores.DynamoAssignmentStore import DynamoAssignmentStore
+from .config import ApplicationSettings
+from .response_stores.ResponseStore import (
     ResponseStore,
+    InMemoryResponseStore,
+    # JSONFileResponseStore,
 )
+from .response_stores.DynamoResponseStore import DynamoResponseStore
 
-from .feedback_providers.FeedbackProvider import (
-    FeedbackProvider,
-)
+from .feedback_providers.FeedbackProvider import FeedbackProvider
+from .feedback_providers.OpenAIFeedbackProvider import OpenAIFeedbackProvider
 from .llm4text_types import Assignment, AssignmentID, Feedback, Submission
 
 
@@ -121,7 +120,12 @@ def get_commons():
                 aws_region=config.aws_region,
                 table_name=config.assignments_table,
             ),
-            response_store=JSONFileResponseStore("responses.jsonl"),
+            response_store=DynamoResponseStore(
+                aws_access_key_id=config.aws_access_key_id,
+                aws_secret_access_key=config.aws_secret_access_key,
+                aws_region=config.aws_region,
+                table_name=config.responses_table,
+            ),
         )
     )
 

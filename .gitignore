@@ -1,6 +1,7 @@
 freetext/config.py
 .vscode/
 cookies.json
+log.txt
 # Created by https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode,macos,linux,node
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,jupyternotebooks,visualstudiocode,macos,linux,node
 
