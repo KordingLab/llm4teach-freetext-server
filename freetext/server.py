@@ -11,6 +11,11 @@ from freetext.assignment_stores import (
     InMemoryAssignmentStore,
     JSONFileAssignmentStore,
 )
+from freetext.response_stores import (
+    ResponseStore,
+    InMemoryResponseStore,
+    JSONFileResponseStore,
+)
 
 from .llm4text_types import Submission, Assignment, Feedback, AssignmentID
 from .feedback_provider import (
@@ -32,6 +37,7 @@ class FeedbackRouter:
         self,
         feedback_providers: list[FeedbackProvider] | None = None,
         assignment_store: AssignmentStore | None = None,
+        response_store: ResponseStore | None = None,
         fallback_feedback_provider: FeedbackProvider | None = None,
     ):
         """
@@ -48,6 +54,9 @@ class FeedbackRouter:
             assignment_store
             if (assignment_store is not None)
             else InMemoryAssignmentStore()
+        )
+        self._response_store = (
+            response_store if (response_store is not None) else InMemoryResponseStore()
         )
         self._fallback_feedback_provider = fallback_feedback_provider
 
@@ -92,6 +101,8 @@ class FeedbackRouter:
                 )
             )
 
+        self._response_store.save(assignment, submission, all_feedback)
+
         return all_feedback
 
 
@@ -107,6 +118,7 @@ def get_commons():
             # [EdgeGPTFeedbackProvider()],
             [OpenAIFeedbackProvider()],
             assignment_store=JSONFileAssignmentStore("assignments.json"),
+            response_store=JSONFileResponseStore("responses.jsonl"),
         )
     )
 
@@ -162,6 +174,22 @@ async def get_assignments(
 
     """
     return commons.feedback_router._assignment_store.get_assignment_ids()
+
+
+@assignment_router.get("/{assignment_id}")
+async def get_assignment(
+    assignment_id: AssignmentID, commons: Annotated[Commons, Depends(get_commons)]
+) -> Assignment:
+    """
+    Get a specific assignment.
+
+    """
+    try:
+        return commons.feedback_router._assignment_store[assignment_id]
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Assignment {assignment_id} not found."
+        ) from None
 
 
 @assignment_router.post("/new")
