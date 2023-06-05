@@ -182,7 +182,7 @@ class OpenAIFeedbackProvider(FeedbackProvider):
 
         {{#geneach 'items' stop='// Done'}}
         {
-            "feedback": {{gen 'this.feedback'}},
+            "feedback": "{{gen 'this.feedback'}}",
             "location": [{{gen 'this.start' stop=','}}, {{gen 'this.stop' stop=']'}}],
         }
         {{/geneach}}
@@ -208,3 +208,37 @@ class OpenAIFeedbackProvider(FeedbackProvider):
             )
             for f in feedback["items"]
         ]
+
+
+class FallbackFeedbackProvider(FeedbackProvider):
+    """
+    A feedback provider that uses a fallback feedback provider if the
+    primary feedback provider fails.
+
+    """
+
+    async def get_feedback(
+        self, submission: Submission, assignment: Assignment
+    ) -> list[Feedback]:
+        """
+        Returns the feedback.
+
+        Arguments:
+            submission: The submission to provide feedback for.
+            assignment: The assignment to provide feedback for.
+
+        Returns:
+            A list of feedback objects.
+
+        """
+        return (
+            [
+                Feedback(
+                    feedback_string=assignment.fallback_response,
+                    source="FallbackFeedbackProvider",
+                    location=(0, len(submission.submission_string)),
+                )
+            ]
+            if assignment.fallback_response is not None
+            else []
+        )

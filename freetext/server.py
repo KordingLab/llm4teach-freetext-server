@@ -6,7 +6,7 @@ import uuid
 from fastapi import FastAPI, HTTPException, APIRouter, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from freetext.AssignmentStore import (
+from freetext.assignment_stores import (
     AssignmentStore,
     InMemoryAssignmentStore,
     JSONFileAssignmentStore,
@@ -15,8 +15,9 @@ from freetext.AssignmentStore import (
 from .llm4text_types import Submission, Assignment, Feedback, AssignmentID
 from .feedback_provider import (
     FeedbackProvider,
-    EdgeGPTFeedbackProvider,
+    # EdgeGPTFeedbackProvider,
     OpenAIFeedbackProvider,
+    FallbackFeedbackProvider,
 )
 
 
@@ -31,6 +32,7 @@ class FeedbackRouter:
         self,
         feedback_providers: list[FeedbackProvider] | None = None,
         assignment_store: AssignmentStore | None = None,
+        fallback_feedback_provider: FeedbackProvider | None = None,
     ):
         """
         Create a new feedback router, with an optional list of providers and
@@ -47,6 +49,7 @@ class FeedbackRouter:
             if (assignment_store is not None)
             else InMemoryAssignmentStore()
         )
+        self._fallback_feedback_provider = fallback_feedback_provider
 
     def add_feedback_provider(self, feedback_provider: FeedbackProvider) -> None:
         """
@@ -80,6 +83,14 @@ class FeedbackRouter:
             feedback = await feedback_provider.get_feedback(submission, assignment)
             # wait for feedback to be returned
             all_feedback.extend(feedback)
+
+        if len(all_feedback) == 0 and self._fallback_feedback_provider is not None:
+            # if no feedback was returned, use the fallback provider
+            all_feedback.extend(
+                await self._fallback_feedback_provider.get_feedback(
+                    submission, assignment
+                )
+            )
 
         return all_feedback
 
