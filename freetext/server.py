@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from .assignment_stores import (
@@ -203,11 +203,15 @@ async def get_assignment(
 async def new_assignment(
     assignment: Assignment,
     commons: Annotated[Commons, Depends(get_commons)],
+    assignment_creation_secret: str = Header(None),
 ) -> AssignmentID:
     """
     Create a new assignment.
 
     """
+    if assignment_creation_secret != ApplicationSettings().assignment_creation_secret:
+        raise HTTPException(status_code=401, detail="Invalid assignment creation.")
+
     return commons.feedback_router._assignment_store.new_assignment(assignment)
 
 

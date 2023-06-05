@@ -8,34 +8,6 @@ from freetext.response_stores import ResponseStore
 from ..llm4text_types import Assignment, AssignmentID, Feedback, Submission
 
 
-# class JSONFileResponseStore(ResponseStore):
-#     def __init__(self, path: str | pathlib.Path):
-#         self._path = pathlib.Path(path)
-
-#     def save(
-#         self,
-#         assignment: Assignment,
-#         submission: Submission,
-#         all_feedback: list[Feedback],
-#     ):
-#         # Append a new JSONL line:
-#         if not self._path.exists():
-#             with open(self._path, "w") as f:
-#                 f.write("")
-#         with open(self._path, "a") as f:
-#             f.write(
-#                 json.dumps(
-#                     {
-#                         "assignment": assignment.dict(),
-#                         "submission": submission.dict(),
-#                         "all_feedback": [f.dict() for f in all_feedback],
-#                         "timestamp": datetime.datetime.now().isoformat(),
-#                     }
-#                 )
-#                 + "\n"
-#             )
-
-
 class DynamoResponseStore(ResponseStore):
     def __init__(
         self,
@@ -86,7 +58,7 @@ class DynamoResponseStore(ResponseStore):
                 "submission": submission.dict(),
                 "all_feedback": [f.dict() for f in all_feedback],
                 "timestamp": datetime.datetime.now().isoformat(),
-                "assignment_id": str(uuid.uuid4()),
+                "assignment_id": submission.assignment_id,
             }
         )
         return response
