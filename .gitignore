@@ -1,3 +1,5 @@
+package-lock.json
+serverless.yaml
 freetext/config.py
 .vscode/
 cookies.json

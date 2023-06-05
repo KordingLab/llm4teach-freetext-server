@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 
 from .assignment_stores import (
     AssignmentStore,
@@ -239,3 +240,6 @@ def serve_debug():
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=9900, workers=2, reload=True)
+
+
+handler = Mangum(app, lifespan="off")

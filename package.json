@@ -1,0 +1,8 @@
+{
+    "name": "freetext-server",
+    "version": "0.1.0",
+    "author": "Jordan Matelsky <opensource@matelsky.com>",
+    "dependencies": {
+        "serverless-python-requirements": "^5.0.1"
+    }
+}
