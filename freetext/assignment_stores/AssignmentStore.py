@@ -9,14 +9,14 @@ class AssignmentStore(Protocol):
     A class that handles storing assignments (and later, submissions.)
     """
 
-    def __getitem__(self, key: AssignmentID) -> Assignment:
+    def get_assignment(self, key: AssignmentID) -> Assignment:
         """
         Returns the assignment with the given ID.
         """
 
         raise NotImplementedError()
 
-    def __setitem__(self, key: AssignmentID, value: Assignment) -> None:
+    def set_assignment(self, key: AssignmentID, value: Assignment) -> None:
         """
         Sets the assignment with the given ID.
         """
@@ -37,18 +37,6 @@ class AssignmentStore(Protocol):
         """
         raise NotImplementedError()
 
-    def __iter__(self) -> list[str]:
-        """
-        Returns a list of all assignment IDs.
-        """
-        raise NotImplementedError()
-
-    def __len__(self) -> int:
-        """
-        Returns the number of assignments.
-        """
-        raise NotImplementedError()
-
     def __contains__(self, key: AssignmentID) -> bool:
         """
         Returns whether the given assignment ID is in the AssignmentStore.
@@ -66,7 +54,7 @@ class InMemoryAssignmentStore(AssignmentStore):
         print("InMemory Store...")
         self._assignments = {}
 
-    def __getitem__(self, key: AssignmentID) -> Assignment:
+    def get_assignment(self, key: AssignmentID) -> Assignment:
         """
         Returns the assignment with the given ID.
 
@@ -74,7 +62,7 @@ class InMemoryAssignmentStore(AssignmentStore):
 
         return self._assignments[key]
 
-    def __setitem__(self, key: AssignmentID, value: Assignment) -> None:
+    def set_assignment(self, key: AssignmentID, value: Assignment) -> None:
         """
         Sets the assignment with the given ID.
 
@@ -102,22 +90,6 @@ class InMemoryAssignmentStore(AssignmentStore):
         assignment_id = AssignmentID(str(uuid.uuid4()))
         self._assignments[assignment_id] = assignment
         return assignment_id
-
-    def __iter__(self) -> list[str]:
-        """
-        Returns a list of all assignment IDs.
-
-        """
-
-        return list(self._assignments.keys())
-
-    def __len__(self) -> int:
-        """
-        Returns the number of assignments.
-
-        """
-
-        return len(self._assignments)
 
     def __contains__(self, key: AssignmentID) -> bool:
         """
