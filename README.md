@@ -13,13 +13,13 @@ poetry install
 For development server usage (with live reloads), run:
 
 ```bash
-uvicorn freetext.server:app --reload --port 9900
+poetry run uvicorn freetext.server:app --reload --port 9900
 ```
 
 For production server usage, run:
 
 ```bash
-uvicorn freetext.server:app --port 9900
+poetry run uvicorn freetext.server:app --port 9900
 ```
 
 ## Examples
