@@ -60,6 +60,10 @@ class JSONFileAssignmentStore(AssignmentStore):
             json.dump({k: dict(v) for k, v in assignments.items()}, f)
 
     def get_assignment_ids(self) -> list[AssignmentID]:
+        if not os.path.exists(self._filename):
+            with open(self._filename, "w") as f:
+                json.dump({}, f)
+
         with open(self._filename, "r") as f:
             assignments = json.load(f)
 
