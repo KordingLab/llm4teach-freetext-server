@@ -15,7 +15,7 @@ class JSONFileAssignmentStore(AssignmentStore):
     def __init__(self, filename: str):
         self._filename = filename
 
-    def __getitem__(self, key: AssignmentID) -> Assignment:
+    def get_assignment(self, key: AssignmentID) -> Assignment:
         """
         Returns the assignment with the given ID.
         """
@@ -28,7 +28,7 @@ class JSONFileAssignmentStore(AssignmentStore):
 
         return assignments[key]
 
-    def __setitem__(self, key: AssignmentID, value: Assignment) -> None:
+    def set_assignment(self, key: AssignmentID, value: Assignment) -> None:
         """
         Sets the assignment with the given ID.
         """
@@ -46,7 +46,7 @@ class JSONFileAssignmentStore(AssignmentStore):
         with open(self._filename, "w") as f:
             json.dump({k: dict(v) for k, v in assignments.items()}, f)
 
-    def __delitem__(self, key: AssignmentID) -> None:
+    def delete_assignment(self, key: AssignmentID) -> None:
         """
         Deletes the assignment with the given ID.
         """
@@ -74,33 +74,9 @@ class JSONFileAssignmentStore(AssignmentStore):
         Adds a new assignment to the store.
         """
         assignment_id = AssignmentID(str(uuid.uuid4()))
-        self[assignment_id] = assignment
+        self.set_assignment(assignment_id, assignment)
 
         return assignment_id
-
-    def __iter__(self) -> list[str]:
-        """
-        Returns a list of all assignment IDs.
-        """
-        if not os.path.exists(self._filename):
-            with open(self._filename, "w") as f:
-                json.dump({}, f)
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        return list(assignments.keys())
-
-    def __len__(self) -> int:
-        """
-        Returns the number of assignments.
-        """
-        if not os.path.exists(self._filename):
-            with open(self._filename, "w") as f:
-                json.dump({}, f)
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        return len(assignments)
 
     def __contains__(self, key: AssignmentID) -> bool:
         """

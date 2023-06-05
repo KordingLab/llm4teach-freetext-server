@@ -1,9 +1,7 @@
 from functools import lru_cache
-import json
-import os
 from typing import Annotated
-import uuid
-from fastapi import FastAPI, HTTPException, APIRouter, Depends
+
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from freetext.assignment_stores import (
@@ -11,19 +9,19 @@ from freetext.assignment_stores import (
     InMemoryAssignmentStore,
     JSONFileAssignmentStore,
 )
+from freetext.assignment_stores.DynamoAssignmentStore import DynamoAssignmentStore
+from freetext.config import ApplicationSettings
+from .feedback_providers.OpenAIFeedbackProvider import OpenAIFeedbackProvider
 from freetext.response_stores import (
-    ResponseStore,
     InMemoryResponseStore,
     JSONFileResponseStore,
+    ResponseStore,
 )
 
-from .llm4text_types import Submission, Assignment, Feedback, AssignmentID
-from .feedback_provider import (
+from .feedback_providers.FeedbackProvider import (
     FeedbackProvider,
-    # EdgeGPTFeedbackProvider,
-    OpenAIFeedbackProvider,
-    FallbackFeedbackProvider,
 )
+from .llm4text_types import Assignment, AssignmentID, Feedback, Submission
 
 
 class FeedbackRouter:
@@ -113,11 +111,16 @@ class Commons:
 
 @lru_cache()
 def get_commons():
+    config = ApplicationSettings()
     return Commons(
         feedback_router=FeedbackRouter(
-            # [EdgeGPTFeedbackProvider()],
             [OpenAIFeedbackProvider()],
-            assignment_store=JSONFileAssignmentStore("assignments.json"),
+            assignment_store=DynamoAssignmentStore(
+                aws_access_key_id=config.aws_access_key_id,
+                aws_secret_access_key=config.aws_secret_access_key,
+                aws_region=config.aws_region,
+                table_name=config.assignments_table,
+            ),
             response_store=JSONFileResponseStore("responses.jsonl"),
         )
     )
@@ -156,7 +159,7 @@ async def get_feedback(
     """
     asg_id = submission.assignment_id
     try:
-        asg = commons.feedback_router._assignment_store[asg_id]
+        asg = commons.feedback_router._assignment_store.get_assignment(asg_id)
     except KeyError:
         raise HTTPException(
             status_code=404, detail=f"Assignment {asg_id} not found."
@@ -185,7 +188,7 @@ async def get_assignment(
 
     """
     try:
-        return commons.feedback_router._assignment_store[assignment_id]
+        return commons.feedback_router._assignment_store.get_assignment(assignment_id)
     except KeyError:
         raise HTTPException(
             status_code=404, detail=f"Assignment {assignment_id} not found."
