@@ -7,6 +7,7 @@ class OpenAIConfig(BaseSettings):
 
 
 class ApplicationSettings(BaseSettings):
+    assignment_creation_secret: str = "I'm totally allowed to make a project"
     aws_access_key_id: str = "AKIA###"
     aws_secret_access_key: str = "###"
     aws_region: str = "us-east-1"
