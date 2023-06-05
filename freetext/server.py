@@ -1,250 +1,23 @@
+from functools import lru_cache
 import json
 import os
-from typing import Protocol, Annotated
+from typing import Annotated
 import uuid
 from fastapi import FastAPI, HTTPException, APIRouter, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from .types import Submission, Assignment, Feedback, AssignmentID
-from .feedback_provider import FeedbackProvider, EdgeGPTFeedbackProvider
-
-
-class AssignmentStore(Protocol):
-    """
-    A class that handles storing assignments (and later, submissions.)
-    """
-
-    def __getitem__(self, key: AssignmentID) -> Assignment:
-        """
-        Returns the assignment with the given ID.
-
-        """
-
-        raise NotImplementedError()
-
-    def __setitem__(self, key: AssignmentID, value: Assignment) -> None:
-        """
-        Sets the assignment with the given ID.
-
-        """
-        raise NotImplementedError()
-
-    def __delitem__(self, key: AssignmentID) -> None:
-        """
-        Deletes the assignment with the given ID.
-
-        """
-        raise NotImplementedError()
-
-    def get_assignment_ids(self) -> list[AssignmentID]:
-        raise NotImplementedError()
-
-    def new_assignment(self, assignment: Assignment) -> AssignmentID:
-        """
-        Adds a new assignment to the store.
-
-        """
-        raise NotImplementedError()
-
-    def __iter__(self) -> list[str]:
-        """
-        Returns a list of all assignment IDs.
-
-        """
-        raise NotImplementedError()
-
-    def __len__(self) -> int:
-        """
-        Returns the number of assignments.
-
-        """
-        raise NotImplementedError()
-
-    def __contains__(self, key: AssignmentID) -> bool:
-        """
-        Returns whether the given assignment ID is in the AssignmentStore.
-
-        """
-        raise NotImplementedError()
-
-
-class InMemoryAssignmentStore(AssignmentStore):
-    """
-    An in-memory AssignmentStore that stores assignments in a dictionary.
-
-    """
-
-    def __init__(self):
-        self._assignments = {}
-
-    def __getitem__(self, key: AssignmentID) -> Assignment:
-        """
-        Returns the assignment with the given ID.
-
-        """
-
-        return self._assignments[key]
-
-    def __setitem__(self, key: AssignmentID, value: Assignment) -> None:
-        """
-        Sets the assignment with the given ID.
-
-        """
-
-        self._assignments[key] = value
-
-    def __delitem__(self, key: AssignmentID) -> None:
-        """
-        Deletes the assignment with the given ID.
-
-        """
-
-        del self._assignments[key]
-
-    def get_assignment_ids(self) -> list[AssignmentID]:
-        return list(self._assignments.keys())
-
-    def new_assignment(self, assignment: Assignment) -> AssignmentID:
-        """
-        Adds a new assignment to the store.
-
-        """
-
-        assignment_id = AssignmentID(str(uuid.uuid4()))
-        self._assignments[assignment_id] = assignment
-        return assignment_id
-
-    def __iter__(self) -> list[str]:
-        """
-        Returns a list of all assignment IDs.
-
-        """
-
-        return list(self._assignments.keys())
-
-    def __len__(self) -> int:
-        """
-        Returns the number of assignments.
-
-        """
-
-        return len(self._assignments)
-
-    def __contains__(self, key: AssignmentID) -> bool:
-        """
-        Returns whether the given assignment ID is in the AssignmentStore.
-
-        """
-
-        return key in self._assignments
-
-
-class JSONFileAssignmentStore(AssignmentStore):
-    """
-    A AssignmentStore that stores assignments in a JSON file.
-
-    """
-
-    def __init__(self, filename: str):
-        self._filename = filename
-        # Create the file if it doesn't exist
-        if not os.path.exists(self._filename):
-            with open(self._filename, "w") as f:
-                json.dump({}, f)
-
-    def __getitem__(self, key: AssignmentID) -> Assignment:
-        """
-        Returns the assignment with the given ID.
-
-        """
-
-        with open(self._filename, "r") as f:
-            assignments = {k: Assignment.parse_obj(v) for k, v in json.load(f).items()}
-
-        return assignments[key]
-
-    def __setitem__(self, key: AssignmentID, value: Assignment) -> None:
-        """
-        Sets the assignment with the given ID.
-
-        """
-
-        with open(self._filename, "r") as f:
-            assignments = {k: Assignment.parse_obj(v) for k, v in json.load(f).items()}
-
-        assignments[key] = value
-
-        with open(self._filename, "w") as f:
-            json.dump({k: dict(v) for k, v in assignments.items()}, f)
-
-    def __delitem__(self, key: AssignmentID) -> None:
-        """
-        Deletes the assignment with the given ID.
-
-        """
-
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        del assignments[key]
-
-        with open(self._filename, "w") as f:
-            json.dump({k: dict(v) for k, v in assignments.items()}, f)
-
-    def get_assignment_ids(self) -> list[AssignmentID]:
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        return list(assignments.keys())
-
-    def new_assignment(self, assignment: Assignment) -> AssignmentID:
-        """
-        Adds a new assignment to the store.
-
-        """
-        assignment_id = AssignmentID(str(uuid.uuid4()))
-
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        assignments[assignment_id] = assignment
-
-        with open(self._filename, "w") as f:
-            json.dump({k: dict(v) for k, v in assignments.items()}, f)
-
-        return assignment_id
-
-    def __iter__(self) -> list[str]:
-        """
-        Returns a list of all assignment IDs.
-
-        """
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        return list(assignments.keys())
-
-    def __len__(self) -> int:
-        """
-        Returns the number of assignments.
-
-        """
-
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        return len(assignments)
-
-    def __contains__(self, key: AssignmentID) -> bool:
-        """
-        Returns whether the given assignment ID is in the AssignmentStore.
-
-        """
-
-        with open(self._filename, "r") as f:
-            assignments = json.load(f)
-
-        return key in assignments
+from freetext.AssignmentStore import (
+    AssignmentStore,
+    InMemoryAssignmentStore,
+    JSONFileAssignmentStore,
+)
+
+from .llm4text_types import Submission, Assignment, Feedback, AssignmentID
+from .feedback_provider import (
+    FeedbackProvider,
+    EdgeGPTFeedbackProvider,
+    OpenAIFeedbackProvider,
+)
 
 
 class FeedbackRouter:
@@ -269,7 +42,11 @@ class FeedbackRouter:
 
         """
         self._feedback_providers = feedback_providers or []
-        self._assignment_store = assignment_store or InMemoryAssignmentStore()
+        self._assignment_store = (
+            assignment_store
+            if (assignment_store is not None)
+            else InMemoryAssignmentStore()
+        )
 
     def add_feedback_provider(self, feedback_provider: FeedbackProvider) -> None:
         """
@@ -312,11 +89,12 @@ class Commons:
         self.feedback_router = feedback_router
 
 
-# @lru_cache()
+@lru_cache()
 def get_commons():
     return Commons(
         feedback_router=FeedbackRouter(
-            [EdgeGPTFeedbackProvider()],
+            # [EdgeGPTFeedbackProvider()],
+            [OpenAIFeedbackProvider()],
             assignment_store=JSONFileAssignmentStore("assignments.json"),
         )
     )
@@ -389,3 +167,15 @@ async def new_assignment(
 
 app.include_router(router)
 app.include_router(assignment_router)
+
+
+def serve():
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=9900, workers=4)
+
+
+def serve_debug():
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=9900, workers=2, reload=True)

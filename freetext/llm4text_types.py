@@ -69,5 +69,5 @@ class Submission(BaseModel):
     submission_string: str = Field(
         ...,
         title="Submission String",
-        description="The submission response text.",
+        description="The submission response text (i.e., from the student).",
     )
