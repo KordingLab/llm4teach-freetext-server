@@ -28,6 +28,12 @@ class Assignment(BaseModel):
         title="Feedback Instructions",
         description="Instructions for the grader on how to provide feedback for this assignment.",
     )
+    fallback_response: str = Field(
+        # optional:
+        None,
+        title="Fallback Response",
+        description="A fallback response to use if the grader fails to generate any other feedback.",
+    )
 
 
 class Feedback(BaseModel):
