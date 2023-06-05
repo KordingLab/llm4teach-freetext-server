@@ -36,6 +36,14 @@ class Assignment(BaseModel):
     )
 
 
+class PublishableAssignment(BaseModel):
+    student_prompt: str = Field(
+        ...,
+        title="Student Prompt",
+        description="The prompt that will be shown to students.",
+    )
+
+
 class Feedback(BaseModel):
     """
     A base schema for Feedback, which is a response to a Submission.

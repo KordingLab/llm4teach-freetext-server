@@ -20,7 +20,13 @@ from .response_stores.DynamoResponseStore import DynamoResponseStore
 
 from .feedback_providers.FeedbackProvider import FeedbackProvider
 from .feedback_providers.OpenAIFeedbackProvider import OpenAIFeedbackProvider
-from .llm4text_types import Assignment, AssignmentID, Feedback, Submission
+from .llm4text_types import (
+    Assignment,
+    AssignmentID,
+    PublishableAssignment,
+    Feedback,
+    Submission,
+)
 
 
 class FeedbackRouter:
@@ -172,27 +178,31 @@ async def get_feedback(
     return await commons.feedback_router.get_feedback(submission, asg)
 
 
-@assignment_router.get("/")
-async def get_assignments(
-    commons: Annotated[Commons, Depends(get_commons)]
-) -> list[AssignmentID]:
-    """
-    Get a list of all assignment IDs.
+# @assignment_router.get("/")
+# async def get_assignments(
+#     commons: Annotated[Commons, Depends(get_commons)]
+# ) -> list[AssignmentID]:
+#     """
+#     Get a list of all assignment IDs.
 
-    """
-    return commons.feedback_router._assignment_store.get_assignment_ids()
+#     """
+#     return commons.feedback_router._assignment_store.get_assignment_ids()
 
 
 @assignment_router.get("/{assignment_id}")
 async def get_assignment(
     assignment_id: AssignmentID, commons: Annotated[Commons, Depends(get_commons)]
-) -> Assignment:
+) -> PublishableAssignment:
     """
     Get a specific assignment.
 
     """
     try:
-        return commons.feedback_router._assignment_store.get_assignment(assignment_id)
+        asg = commons.feedback_router._assignment_store.get_assignment(assignment_id)
+        return PublishableAssignment(
+            student_prompt=asg.student_prompt,
+        )
+
     except KeyError:
         raise HTTPException(
             status_code=404, detail=f"Assignment {assignment_id} not found."
