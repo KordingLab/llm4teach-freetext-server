@@ -63,5 +63,3 @@ poetry run uvicorn freetext.server:app --port 9900
 > ##### Feedback (Auto-Generated)
 >
 > -   The author did not mention immutability and did not indicate which is which. To remedy this, the author should explain that tuples are immutable while lists are mutable.
-
-## Deploying to AWS

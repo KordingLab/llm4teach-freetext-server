@@ -1,3 +1,4 @@
+from typing import List, Union
 from ..llm4text_types import Assignment, Feedback, Submission
 from ..response_stores.ResponseStore import ResponseStore
 
@@ -8,14 +9,14 @@ import pathlib
 
 
 class JSONFileResponseStore(ResponseStore):
-    def __init__(self, path: str | pathlib.Path):
+    def __init__(self, path: Union[str, pathlib.Path]):
         self._path = pathlib.Path(path)
 
     def save(
         self,
         assignment: Assignment,
         submission: Submission,
-        all_feedback: list[Feedback],
+        all_feedback: List[Feedback],
     ):
         # Append a new JSONL line:
         if not self._path.exists():

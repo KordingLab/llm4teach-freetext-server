@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import List, Protocol
 
 from ..llm4text_types import Assignment, Feedback, Submission
 
@@ -12,7 +12,7 @@ class FeedbackProvider(Protocol):
 
     async def get_feedback(
         self, submission: Submission, assignment: Assignment
-    ) -> list[Feedback]:
+    ) -> List[Feedback]:
         """
         Returns the feedback for a given submission.
 

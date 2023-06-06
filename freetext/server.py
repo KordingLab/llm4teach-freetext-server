@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +20,10 @@ from .response_stores.ResponseStore import (
 from .response_stores.DynamoResponseStore import DynamoResponseStore
 
 from .feedback_providers.FeedbackProvider import FeedbackProvider
-from .feedback_providers.OpenAIFeedbackProvider import OpenAIFeedbackProvider
+from .feedback_providers.OpenAIFeedbackProvider import (
+    OpenAICompletionBasedFeedbackProvider,
+    OpenAIChatBasedFeedbackProvider,
+)
 from .llm4text_types import (
     Assignment,
     AssignmentID,
@@ -39,10 +42,10 @@ class FeedbackRouter:
 
     def __init__(
         self,
-        feedback_providers: list[FeedbackProvider] | None = None,
-        assignment_store: AssignmentStore | None = None,
-        response_store: ResponseStore | None = None,
-        fallback_feedback_provider: FeedbackProvider | None = None,
+        feedback_providers: Optional[list[FeedbackProvider]] = None,
+        assignment_store: Optional[AssignmentStore] = None,
+        response_store: Optional[ResponseStore] = None,
+        fallback_feedback_provider: Optional[FeedbackProvider] = None,
     ):
         """
         Create a new feedback router, with an optional list of providers and
@@ -120,7 +123,10 @@ def get_commons():
     config = ApplicationSettings()
     return Commons(
         feedback_router=FeedbackRouter(
-            [OpenAIFeedbackProvider()],
+            [
+                # OpenAICompletionBasedFeedbackProvider(),
+                OpenAIChatBasedFeedbackProvider()
+            ],
             assignment_store=DynamoAssignmentStore(
                 aws_access_key_id=config.aws_access_key_id,
                 aws_secret_access_key=config.aws_secret_access_key,
