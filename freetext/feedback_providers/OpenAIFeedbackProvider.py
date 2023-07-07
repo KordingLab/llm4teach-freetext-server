@@ -146,32 +146,32 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
             grader = guidance.Program(
                 """
             {{#system~}}
-            You are a helpful and terse TA.
+            You are a helpful instructor, who knows that students need precise and terse feedback but also that they are most motivated if you are excited, engaging, and remain positive.
             {{~/system}}
 
             {{#user~}}
             The student has been given the following prompt:
 
-            ---
+            ----
             {{prompt}}
-            ---
+            ----
 
-            The secret, grader-only criteria for grading are as follows:
-
-            ---
+            The secret, grader-only criteria for grading are:
+            ----
             {{criteria}}
-            ---
+            ----
 
-            The student response is as follows:
-            ---
+            The complete student response is as follows:
+            ----
 
             {{response}}
 
-            ---
+            ----
 
-            Provide your feedback as a bulleted list.
+            Provide your feedback as a bulleted list indicating both what the student got right, details in these right things they are missing and lastly which points they overlooked.
+            Be particularly mindful of scientific rigor issues including confusing correlation with causation, biases, and logical fallacies.
 
-            Do not instruct the student to review the criteria, as this is not provided to the student.
+            Do not instruct the student to review the criteria, as this is not provided to the student. Write to the student using "you" in the second person.
 
             {{audience_caveat}}
 

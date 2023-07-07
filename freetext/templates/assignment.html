@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>llm4edu &mdash; Kording Lab</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+</head>
+
+<body>
+
+    <h1>llm4edu</h1>
+
+    <blockquote>
+        This is an alpha verson of the llm4edu software. This software is provided AS-IS, with ZERO guarantees
+        of performance, privacy, and availability. For questions, please contact <a
+            href="mailto:matelsky+llm4edu@seas.upenn.edu">Jordan Matelsky</a>.
+    </blockquote>
+
+    <br />
+    <hr />
+    <br />
+    <h2>
+        <%= student_prompt %>
+    </h2>
+    <br />
+    <textarea name="response" class="block" id="response" placeholder="Your answer goes here!"></textarea>
+    <br />
+    <hr />
+    <br />
+    <button id="submit-question">Submit</button>
+
+    <article id="result">
+
+    </article>
+    <br />
+
+    <style>
+        .block {
+            display: block;
+            width: 100%;
+        }
+
+        #result {
+            display: none;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script>
+        var notyf = new Notyf();
+        const endpoint = window.location.origin;
+
+        const submitButton = document.getElementById("submit-question");
+        // Attach the event listener:
+        submitButton.addEventListener("click", () => {
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            const payload = {
+                "assignment_id": "<%= assignment_id %>",
+                "submission_string": document.getElementById("response").value.trim(),
+            };
+            if (payload.submission_string.length < 1) {
+                notyf.error("Please enter a response.");
+                return;
+            }
+
+            // Disable the button:
+            submitButton.disabled = true;
+            notyf.success("Please wait while we process your response...");
+
+            fetch(`${endpoint}/feedback`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            })
+                .then(response => response.json())
+                .then(responseList => {
+                    const response = responseList.length > 0 ? responseList[0] : undefined;
+                    if (!response) {
+                        notyf.error("There was an error processing your answer.");
+                        submitButton.disabled = false;
+                        return;
+                    }
+                    const { feedback_string } = response;
+
+                    document.querySelector("#result").innerHTML = `
+                        <h3>Feedback</h3>
+                        <p>${feedback_string.replaceAll("\n- ", "<br /> &mdash; ")}</p>
+                    `;
+                    document.querySelector("#result").style.display = "block";
+                    submitButton.disabled = false;
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    notyf.error("There was an error creating the question.");
+                    submitButton.disabled = false;
+                });
+        });
+
+
+
+
+    </script>
+
+</body>
+
+</html>

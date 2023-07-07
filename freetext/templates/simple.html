@@ -5,14 +5,145 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Teaching LLM</title>
+    <title>llm4edu &mdash; Kording Lab</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
 </head>
 
 <body>
 
+    <h1>llm4edu</h1>
 
+    <blockquote>
+        This is an alpha verson of the llm4edu software. This software is provided AS-IS, with ZERO guarantees
+        of performance, privacy, and availability. For questions, please contact <a
+            href="mailto:matelsky+llm4edu@seas.upenn.edu">Jordan Matelsky</a>.
+    </blockquote>
+
+    <p>
+        If you are a student, you do not need to use this page. If you are an instructor or educator, please see the
+        instructions below.
+    </p>
+
+    <br />
+    <hr />
+    <br />
+    <label for="question">Student-facing question</label>
+    <input type="text" name="question" class="block" id="question"
+        placeholder="What are the components and structure of a molecule of DNA?" />
+    <br />
+    <br />
+    <label for="criteria">Criteria for grading (one per line)</label>
+    <textarea name="criteria" class="block" id="criteria" placeholder="Mention base pairs, sugar, and phosphate.
+Describe that DNA is a double helix.
+Note that base pairs pair up in a specific way using hydrogen bonds (AT and GC)."></textarea>
+    <br />
+    <br />
+    <label for="secret">Security code</label>
+    <input type="password" name="secret" class="block" id="secret"
+        placeholder="Authorized users should use their security token." />
+    <br />
+    <hr />
+    <br />
+    <button id="submit-question">Create Question</button>
+
+    <article id="result">
+        <br />
+        <header id="code-explanation">You can copy and paste this code into a Jupyter notebook to create a widget
+            that will display the question to students.</header>
+        <main>
+            <pre><code id="creation-code">from freetext_jupyter import FreetextWidget
+
+widget = FreetextWidget("${assignmentId}")
+widget.display()</code></pre>
+        </main>
+
+        <br />
+        <header id="web-explanation">
+            You can also use this link to view the question in a web browser:
+            <a href=""></a>
+        </header>
+
+    </article>
+    <br />
+
+    <style>
+        .block {
+            display: block;
+            width: 100%;
+        }
+
+        #result {
+            display: none;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
     <script>
+        var notyf = new Notyf();
+        const endpoint = window.location.origin;
+
+        const submitButton = document.getElementById("submit-question");
+        // Attach the event listener:
+        submitButton.addEventListener("click", () => {
+            const headers = {
+                'assignment-creation-string': document.getElementById("secret").value,
+                'Content-Type': 'application/json',
+            };
+
+            const payload = {
+                "student_prompt": document.getElementById("question").value.trim(),
+                "feedback_requirements": document.getElementById("criteria").value.split("\n")
+                    .map(x => x.trim()).filter(x => x.length > 0),
+                "feedback_instructions": "",
+                "fallback_response": ""
+            };
+            if (payload.student_prompt.length < 1) {
+                notyf.error("Please enter a question.");
+                return;
+            }
+            if (payload.feedback_requirements.length < 1) {
+                notyf.error("Please enter at least one grading criterion.");
+                return;
+            }
+            if (headers['assignment-creation-string'].length < 1) {
+                notyf.error("Please enter a security token.");
+                return;
+            }
+
+            // Disable the button:
+            submitButton.disabled = true;
+
+            fetch(`${endpoint}/assignments/new`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            })
+                .then(response => response.json())
+                .then(assignmentId => {
+                    const codeSample = `
+from freetext_jupyter import FreetextWidget
+
+widget = FreetextWidget("${assignmentId}")
+widget.display()
+`;
+                    notyf.success("Question created successfully.");
+                    document.querySelector("#creation-code").innerText = codeSample;
+                    document.querySelector("#web-explanation a").href = `${endpoint}/app/assignments/${assignmentId}`;
+                    document.querySelector("#web-explanation a").innerText = `${endpoint}/app/assignments/${assignmentId}`;
+                    document.querySelector("#result").style.display = "block";
+                    submitButton.disabled = false;
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    notyf.error("There was an error creating the question.");
+                    submitButton.disabled = false;
+                });
+        });
+
+
+
+
     </script>
 
 </body>

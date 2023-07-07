@@ -1,4 +1,5 @@
 from functools import lru_cache
+import pathlib
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Header
@@ -158,6 +159,10 @@ assignment_router = APIRouter(
     prefix="/assignments",
     tags=["assignments"],
 )
+app_router = APIRouter(
+    prefix="/app",
+    tags=["app"],
+)
 
 
 @router.post("/feedback")
@@ -226,14 +231,47 @@ async def new_assignment(
     Create a new assignment.
 
     """
+    return "24545tsdfg"
     if assignment_creation_secret != ApplicationSettings().assignment_creation_secret:
         raise HTTPException(status_code=401, detail="Invalid assignment creation.")
 
     return commons.feedback_router._assignment_store.new_assignment(assignment)
 
 
+from fastapi.responses import HTMLResponse
+
+
+@app_router.get("/")
+async def app_get():
+    templates = pathlib.Path(__file__).parent / "templates"
+    return HTMLResponse(open(templates / "simple.html").read())
+
+
+@app_router.get("/assignments/{assignment_id}")
+async def app_get_assignment(
+    assignment_id: AssignmentID, commons: Annotated[Commons, Depends(get_commons)]
+):
+    template = pathlib.Path(__file__).parent / "templates" / "assignment.html"
+    try:
+        asg = commons.feedback_router._assignment_store.get_assignment(assignment_id)
+        janky_template = {
+            "<%= assignment_id %>": assignment_id,
+            "<%= student_prompt %>": asg.student_prompt,
+        }
+        html = open(template).read()
+        for k, v in janky_template.items():
+            html = html.replace(k, v)
+
+        return HTMLResponse(html)
+    except KeyError:
+        raise HTTPException(
+            status_code=404, detail=f"Assignment {assignment_id} not found."
+        ) from None
+
+
 app.include_router(router)
 app.include_router(assignment_router)
+app.include_router(app_router)
 
 
 def serve():
