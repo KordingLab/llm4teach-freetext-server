@@ -146,11 +146,11 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
             grader = guidance.Program(
                 """
             {{#system~}}
-            You are a helpful instructor, who knows that students need precise and terse feedback but also that they are most motivated if you are excited, engaging, and remain positive.
+            You are a helpful instructor, who knows that students need precise and terse feedback. Students are most motivated if you are engaging and remain positive, but it is more important to be honest and accurate than cheerful.
             {{~/system}}
 
             {{#user~}}
-            The student has been given the following prompt:
+            The student has been given the following prompt by the instructor:
 
             ----
             {{prompt}}
@@ -161,6 +161,15 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
             {{criteria}}
             ----
 
+            Please give your OWN answer to the prompt:
+
+            {{~/user}}
+
+            {{#assistant~}}
+            {{gen '_machine_answer'}}
+            {{~/assistant}}
+
+            {{#user~}}
             The complete student response is as follows:
             ----
 
@@ -168,15 +177,17 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
 
             ----
 
-            Provide your feedback as a bulleted list indicating both what the student got right, details in these right things they are missing and lastly which points they overlooked.
-            Be particularly mindful of scientific rigor issues including confusing correlation with causation, biases, and logical fallacies.
+            Thinking about the differences between your answer and the student's, provide your feedback to the student as a bulleted list indicating both what the student got right and what they got wrong. Give details about what they are missing or misunderstood, and mention points they overlooked, if any.
 
-            Do not instruct the student to review the criteria, as this is not provided to the student. Write to the student using "you" in the second person.
+            Do not instruct the student to review the criteria, as this is not provided to the student. Write to the student using "you" in the second person. The student will not see your answer to the prompt, so do not refer to it.
+
+            Be particularly mindful of scientific rigor issues including confusing correlation with causation, biases, and logical fallacies. You must also correct factual errors using your extensive domain knowledge, even if the errors are subtle or minor.
+
+            Do not say "Keep up the good work" or other encouragement "fluff." Write only the response to the student; do not write any other text.
 
             {{audience_caveat}}
 
             {{fact_check_caveat}}
-
             {{~/user}}
 
             {{#assistant~}}
@@ -193,12 +204,12 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
                     [f"     * {f}" for f in assignment.feedback_requirements]
                 ),
                 audience_caveat="",  # You should provide feedback keeping in mind that the student is a Graduate Student and should be graded accordingly.
-                fact_check_caveat="",  # You should also fact-check the student's response. If the student's response is factually incorrect, you should provide feedback on the incorrect statements.",
+                fact_check_caveat="You should also fact-check the student's response. If the student's response is factually incorrect, you should provide feedback on the incorrect statements.",
             )
 
             return [
                 Feedback(
-                    feedback_string=feedback["feedback"],
+                    feedback_string="\n" + feedback["feedback"],
                     source="OpenAIFeedbackProvider",
                     location=(0, len(submission.submission_string)),
                 )

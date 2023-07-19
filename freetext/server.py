@@ -1,9 +1,9 @@
 from functools import lru_cache
 import pathlib
 from typing import Annotated, Optional
-
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from mangum import Mangum
 
 from .assignment_stores import (
@@ -22,7 +22,7 @@ from .response_stores.DynamoResponseStore import DynamoResponseStore
 
 from .feedback_providers.FeedbackProvider import FeedbackProvider
 from .feedback_providers.OpenAIFeedbackProvider import (
-    OpenAICompletionBasedFeedbackProvider,
+    # OpenAICompletionBasedFeedbackProvider,
     OpenAIChatBasedFeedbackProvider,
 )
 from .llm4text_types import (
@@ -190,15 +190,10 @@ async def get_feedback(
     return await commons.feedback_router.get_feedback(submission, asg)
 
 
-# @assignment_router.get("/")
-# async def get_assignments(
-#     commons: Annotated[Commons, Depends(get_commons)]
-# ) -> list[AssignmentID]:
-#     """
-#     Get a list of all assignment IDs.
-
-#     """
-#     return commons.feedback_router._assignment_store.get_assignment_ids()
+@router.get("/robots.txt", response_class=PlainTextResponse)
+def robots():
+    data = """User-agent: *\nDisallow: /"""
+    return data
 
 
 @assignment_router.get("/{assignment_id}")
@@ -231,14 +226,11 @@ async def new_assignment(
     Create a new assignment.
 
     """
-    return "24545tsdfg"
+    print(assignment_creation_secret, ApplicationSettings().assignment_creation_secret)
     if assignment_creation_secret != ApplicationSettings().assignment_creation_secret:
         raise HTTPException(status_code=401, detail="Invalid assignment creation.")
 
     return commons.feedback_router._assignment_store.new_assignment(assignment)
-
-
-from fastapi.responses import HTMLResponse
 
 
 @app_router.get("/")
