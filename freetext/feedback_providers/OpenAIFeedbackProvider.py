@@ -1,113 +1,9 @@
-from typing import Optional
+from typing import List, Optional
 import guidance
 
 from ..config import OpenAIConfig
 from ..feedback_providers.FeedbackProvider import FeedbackProvider
 from ..llm4text_types import Assignment, Feedback, Submission
-
-
-class OpenAICompletionBasedFeedbackProvider(FeedbackProvider):
-
-    """
-    A feedback provider that transacts with the OpenAI API for student
-    responses. Uses Microsoft's `guidance` tool for feedback curation.
-    """
-
-    def __init__(self, config_override: Optional[OpenAIConfig] = None):
-        if config_override is not None:
-            self.config = config_override
-        else:
-            self.config = OpenAIConfig()
-
-    async def get_feedback(
-        self, submission: Submission, assignment: Assignment
-    ) -> list[Feedback]:
-        """
-        Returns the feedback.
-        Arguments:
-            submission: The submission to provide feedback for.
-            assignment: The assignment to provide feedback for.
-        Returns:
-            A list of feedback objects.
-        """
-
-        # set the default language model used to execute guidance programs
-        try:
-            openai_kwargs = self.config.dict()
-            guidance.llm = guidance.llms.OpenAI("text-davinci-003", **openai_kwargs)
-
-            # https://github.com/microsoft/guidance/discussions/108
-            grader = guidance.Program(
-                """
-            You are a helpful and terse TA.
-            The student has been given the following prompt:
-
-            ---
-            {{prompt}}
-            ---
-
-            The secret, grader-only criteria for grading are as follows:
-
-            ---
-            {{criteria}}
-            ---
-
-            The student response is as follows:
-            ---
-
-            {{response}}
-
-            ---
-
-            Provide your feedback as a list of JSON objects, each including the following fields:
-            * feedback (str): The comment to give to the student.
-            * location (tuple[int, int]): The start and end character indices of the text to which the feedback applies.
-
-            Be as precise and specific as possible, referencing the shortest possible spans while still including all the problem text.
-            You do not need to cover all of the problem text with locations.
-
-            Do not instruct the student to review the criteria, as this is not provided to the student.
-
-            {{audience_caveat}}
-
-            {{fact_check_caveat}}
-
-
-            When you're done, write "// Done" on the last line.
-
-            # Feedback
-
-            {{#geneach 'items' stop='// Done'}}
-            {
-                "feedback": "{{gen 'this.feedback'}}",
-                "location": [{{gen 'this.start' stop=','}}, {{gen 'this.stop' stop=']'}}],
-            }
-            {{/geneach}}
-            """
-            )
-
-            response = submission.submission_string
-            feedback = grader(
-                response=response,
-                prompt=assignment.student_prompt,
-                criteria="\n".join(
-                    [f"     * {f}" for f in assignment.feedback_requirements]
-                ),
-                audience_caveat="",  # You should provide feedback keeping in mind that the student is a Graduate Student and should be graded accordingly.
-                fact_check_caveat="",  # You should also fact-check the student's response. If the student's response is factually incorrect, you should provide feedback on the incorrect statements.
-            )
-
-            return [
-                Feedback(
-                    feedback_string=f["feedback"],
-                    source="OpenAIFeedbackProvider",
-                    location=(f["start"], f["stop"]),
-                )
-                for f in feedback["items"]
-            ]
-        except Exception as e:
-            print(e)
-            return []
 
 
 class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
@@ -218,8 +114,171 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
             print(e)
             return []
 
+    async def suggest_criteria(self, assignment: Assignment) -> List[str]:
+        """
+        Uses the OpenAI ChatGPT 3.5 Turbo model to suggest grading criteria
+        for a question. If criteria are already provided, they may be edited
+        or modified by this function.
+
+        Arguments:
+            assignment (Assignment): The assignment to suggest criteria for.
+
+        Returns:
+            List[str]: A list of criteria.
+
+        """
+        try:
+            openai_kwargs = self.config.dict()
+            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
+
+            grader = guidance.Program(
+                """
+            {{#system~}}
+            You are a helpful instructor, who knows that students need precise and terse feedback.
+            {{~/system}}
+
+            {{#user~}}
+            The student has been given the following prompt by the instructor:
+
+            ----
+            {{prompt}}
+            ----
+
+            The secret, grader-only criteria for grading are:
+            ----
+            {{criteria}}
+            ----
+
+            Please give your OWN answer to the prompt:
+
+            {{~/user}}
+
+            {{#assistant~}}
+            {{gen '_machine_answer'}}
+            {{~/assistant}}
+
+            {{#user~}}
+            Thinking about the important points that must be addressed in this question, provide a bulleted list of criteria that should be used to grade the student's response. These criteria should be specific and precise, and should be able to be applied to the student's response to determine a grade. You may include the criteria that were provided to the student if you agree with them, or you may modify them or replace them entirely.
+
+            In general, you should provide 3-5 criteria. You can provide fewer if you think that is appropriate.
+
+            {{audience_caveat}}
+            {{~/user}}
+
+            {{#assistant~}}
+            {{gen 'criteria'}}
+            {{~/assistant}}
+            """
+            )
+
+            response = assignment.student_prompt
+            criteria = grader(
+                response=response,
+                prompt=assignment.student_prompt,
+                criteria="\n".join(
+                    [f"     * {f}" for f in assignment.feedback_requirements]
+                ),
+                audience_caveat="",
+            )
+
+            return criteria["criteria"].split("\n")
+        except Exception as e:
+            print(e)
+            return []
+
+    async def suggest_question(self, assignment: Assignment) -> str:
+        """
+        Generate a suggestion for a student-facing question, given a current
+        question and a set of criteria.
+
+        The current implementation is a bit heavy, and may be unadvised for
+        high-throughput applications as it requires several responses from a
+        LLM to arrive at an improved question.
+
+        The current approach is the following:
+        * Take a question "draft" and have the machine answer it.
+        * Grade that response with the current criteria.
+        * Identify what properties (if any) SHOULD have been more clear in the
+            question text.
+        * Generate a new question that includes those properties.
+
+        """
+        try:
+            openai_kwargs = self.config.dict()
+            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
+
+            draft_response = guidance.Program(
+                """
+            {{#system~}}
+            You are a knowledgeable assistant who is working to develop a course.
+            {{~/system}}
+
+            {{#user~}}
+            You must answer the following question to the best of your ability.
+
+            ----
+            {{prompt}}
+            ----
+
+            Please give your OWN answer to this question:
+
+            {{~/user}}
+
+            {{#assistant~}}
+            {{gen '_machine_answer'}}
+            {{~/assistant}}
+            """
+            )
+            criteria = draft_response(prompt=assignment.student_prompt)
+
+            feedback = await self.get_feedback(
+                Submission(
+                    submission_string=criteria["_machine_answer"],
+                    assignment_id="_DRAFT_",
+                ),
+                assignment,
+            )
+
+            question_improver = guidance.Program(
+                """
+            {{#system~}}
+            You are a knowledgeable instructor who is working to develop a course.
+            {{~/system}}
+
+            {{#user~}}
+            A student has been given the following prompt by the instructor:
+
+            ----
+            {{prompt}}
+            ----
+
+            The student has received the following feedback from the grader:
+
+            ----
+            {{feedback}}
+            ----
+
+            You are concerned that the student may have been confused by the question. You want to improve the question so that students are less likely to be confused. You should not change the meaning of the question, but you may clarify the question so that the requirements of the grader are more clear. Do not explicitly refer to the feedback in your question. Your question should take the form of a question that a student would be asked.
+
+            {{~/user}}
+
+            {{#assistant~}}
+            {{gen 'improved_question'}}
+            {{~/assistant}}
+            """
+            )
+
+            improved_question = question_improver(
+                prompt=assignment.student_prompt,
+                feedback="\n".join([f.feedback_string for f in feedback]),
+            )
+
+            return improved_question["improved_question"].lstrip('"').rstrip('"')
+        except Exception as e:
+            print(e)
+            return assignment.student_prompt
+
 
 __all__ = [
-    "OpenAICompletionBasedFeedbackProvider",
     "OpenAIChatBasedFeedbackProvider",
 ]

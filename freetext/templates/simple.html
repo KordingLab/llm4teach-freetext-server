@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>llm4edu &mdash; Kording Lab</title>
+    <title>freetext | llm4edu &mdash; Kording Lab</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
 </head>
 
 <body>
 
-    <h1>llm4edu</h1>
+    <h1>freetext &mdash; llm4edu</h1>
 
     <blockquote>
         This is an alpha verson of the llm4edu software. This software is provided AS-IS, with ZERO guarantees
@@ -28,20 +28,40 @@
     <br />
     <hr />
     <br />
+    <label for="secret">Security code</label>
+    <input type="password" name="secret" class="block" id="secret"
+        placeholder="Authorized users should use their security token." />
+    <br />
+    <button id="btn-suggest-question" disabled style="float:right" title="Input security code and criteria to begin.">
+        Get question insights
+    </button>
+    <br />
     <label for="question">Student-facing question</label>
+    <aside id="btn-suggest-question-staging" class="hidden">
+        <header><b>Machine-generated question:</b></header>
+        <p id="machine-generated-question"></p>
+        <button id="btn-accept-question">
+            Replace current question with suggestion
+        </button>
+    </aside>
     <input type="text" name="question" class="block" id="question"
         placeholder="What are the components and structure of a molecule of DNA?" />
     <br />
     <br />
     <label for="criteria">Criteria for grading (one per line)</label>
+    <aside id="btn-suggest-criteria-staging" class="hidden">
+        <header><b>Machine-generated criteria:</b></header>
+        <p id="machine-generated-criteria"></p>
+        <button id="btn-accept-criteria">
+            Replace current criteria with suggestion
+        </button>
+    </aside>
+    <button id="btn-suggest-critera" disabled style="float:right" title="Input security code first.">
+        Auto-suggest criteria
+    </button>
     <textarea name="criteria" class="block" id="criteria" placeholder="Mention base pairs, sugar, and phosphate.
 Describe that DNA is a double helix.
 Note that base pairs pair up in a specific way using hydrogen bonds (AT and GC)."></textarea>
-    <br />
-    <br />
-    <label for="secret">Security code</label>
-    <input type="password" name="secret" class="block" id="secret"
-        placeholder="Authorized users should use their security token." />
     <br />
     <hr />
     <br />
@@ -76,79 +96,271 @@ widget.display()</code></pre>
         #result {
             display: none;
         }
+
+        aside {
+            /* Well-like display */
+            display: block;
+            padding: 0.5em;
+            margin: 0.5em;
+            border: none;
+            border-radius: 0.5em;
+            background-color: #eee;
+            color: #333;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            aside {
+                background-color: #333;
+                color: #eee;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
     <script>
+
+        // #secret onchange activates the suggest-criteria button.
+        // Add change and keyup listeners to the secret field:
+        function undisableSuggestButtons() {
+            document.getElementById("btn-suggest-critera").disabled = false;
+            document.getElementById("btn-suggest-critera").removeAttribute("title");
+            document.getElementById("btn-suggest-critera").innerHTML = "Auto-suggest criteria";
+            document.getElementById("btn-suggest-question").disabled = false;
+            document.getElementById("btn-suggest-question").removeAttribute("title");
+            document.getElementById("btn-suggest-question").innerHTML = "Get question insights";
+        }
+        document.getElementById("secret").addEventListener("change", undisableSuggestButtons);
+        document.getElementById("secret").addEventListener("keyup", undisableSuggestButtons);
+
+
         var notyf = new Notyf();
         const endpoint = window.location.origin;
 
         const submitButton = document.getElementById("submit-question");
-        // Attach the event listener:
-        submitButton.addEventListener("click", () => {
-            const headers = {
-                'assignment-creation-secret': document.getElementById("secret").value,
-                'Content-Type': 'application/json',
-            };
 
-            const payload = {
-                "student_prompt": document.getElementById("question").value.trim(),
-                "feedback_requirements": document.getElementById("criteria").value.split("\n")
-                    .map(x => x.trim()).filter(x => x.length > 0),
-                "feedback_instructions": "",
-                "fallback_response": ""
-            };
-            if (payload.student_prompt.length < 1) {
-                notyf.error("Please enter a question.");
-                return;
-            }
-            if (payload.feedback_requirements.length < 1) {
-                notyf.error("Please enter at least one grading criterion.");
-                return;
-            }
-            if (headers['assignment-creation-secret'].length < 1) {
-                notyf.error("Please enter a security token.");
-                return;
+
+        class LLM4EduAPI {
+            constructor() {
+                this.endpoint = window.location.origin;
+                this.submitButton = document.getElementById("submit-question");
+                this.suggestQuestionButton = document.getElementById("btn-suggest-question");
+                this.suggestCriteriaButton = document.getElementById("btn-suggest-critera");
+                this.suggestQuestionStaging = document.getElementById("btn-suggest-question-staging");
+                this.stagingQuestionText = document.getElementById("machine-generated-question");
+                this.acceptQuestionButton = document.getElementById("btn-accept-question");
+                this.questionInput = document.getElementById("question");
+                this.stagingCriteriaText = document.getElementById("machine-generated-criteria");
+                this.acceptCriteriaButton = document.getElementById("btn-accept-criteria");
+                this.suggestCriteriaStaging = document.getElementById("btn-suggest-criteria-staging");
+                this.criteriaInput = document.getElementById("criteria");
+
+                this.submitButton.addEventListener("click", () => {
+                    this.createQuestion();
+                });
+
+                this.suggestQuestionButton.addEventListener("click", () => {
+                    this.suggestQuestion();
+                });
+
+                this.suggestCriteriaButton.addEventListener("click", () => {
+                    this.suggestCriteria();
+                });
             }
 
-            // Disable the button:
-            submitButton.disabled = true;
+            validateFields(requireCriteria = true) {
+                const headers = {
+                    'assignment-creation-secret': document.getElementById("secret").value,
+                    'Content-Type': 'application/json',
+                };
 
-            fetch(`${endpoint}/assignments/new`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(payload)
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        notyf.error("Could not create question. Please contact the developers.");
-                        throw new Error(response)
-                    }
-                    return response.json()
+                const payload = {
+                    "student_prompt": document.getElementById("question").value.trim(),
+                    "feedback_requirements": document.getElementById("criteria").value.split("\n")
+                        .map(x => x.trim()).filter(x => x.length > 0),
+                    "feedback_instructions": "",
+                    "fallback_response": ""
+                };
+                if (payload.student_prompt.length < 1) {
+                    notyf.error("Please enter a question.");
+                    return false;
+                }
+                if (payload.feedback_requirements.length < 1 && requireCriteria) {
+                    notyf.error("Please enter at least one grading criterion.");
+                    return false;
+                }
+                if (headers['assignment-creation-secret'].length < 1) {
+                    notyf.error("Please enter a security token.");
+                    return false;
+                }
+                return true;
+            }
+
+            createQuestion() {
+                const isValid = this.validateFields();
+                if (!isValid) {
+                    return;
+                }
+
+                const headers = {
+                    'assignment-creation-secret': document.getElementById("secret").value,
+                    'Content-Type': 'application/json',
+                };
+
+                const payload = {
+                    "student_prompt": document.getElementById("question").value.trim(),
+                    "feedback_requirements": document.getElementById("criteria").value.split("\n")
+                        .map(x => x.trim()).filter(x => x.length > 0),
+                    "feedback_instructions": "",
+                    "fallback_response": ""
+                };
+
+                // Disable the button:
+                this.submitButton.disabled = true;
+
+                fetch(`${endpoint}/assignments/new`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
                 })
-                .then(assignmentId => {
-                    const codeSample = `
+                    .then(response => {
+                        if (!response.ok) {
+                            notyf.error("Could not create question. Please contact the developers.");
+                            throw new Error(response)
+                        }
+                        return response.json()
+                    })
+                    .then(assignmentId => {
+                        const codeSample = `
 from freetext_jupyter import FreetextWidget
 
 widget = FreetextWidget("${assignmentId}")
 widget.display()
 `;
-                    notyf.success("Question created successfully.");
-                    document.querySelector("#creation-code").innerText = codeSample;
-                    document.querySelector("#web-explanation a").href = `${endpoint}/app/assignments/${assignmentId}`;
-                    document.querySelector("#web-explanation a").innerText = `${endpoint}/app/assignments/${assignmentId}`;
-                    document.querySelector("#result").style.display = "block";
-                    submitButton.disabled = false;
+                        notyf.success("Question created successfully.");
+                        document.querySelector("#creation-code").innerText = codeSample;
+                        document.querySelector("#web-explanation a").href = `${endpoint}/app/assignments/${assignmentId}`;
+                        document.querySelector("#web-explanation a").innerText = `${endpoint}/app/assignments/${assignmentId}`;
+                        document.querySelector("#result").style.display = "block";
+                        this.submitButton.disabled = false;
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        notyf.error("There was an error creating the question.");
+                        this.submitButton.disabled = false;
+                    });
+            }
+
+            suggestCriteria() {
+                const isValid = this.validateFields(false);
+                if (!isValid) {
+                    return;
+                }
+
+                const headers = {
+                    'assignment-creation-secret': document.getElementById("secret").value,
+                    'Content-Type': 'application/json',
+                };
+
+                const payload = {
+                    "student_prompt": document.getElementById("question").value.trim(),
+                    "feedback_requirements": document.getElementById("criteria").value.split("\n")
+                        .map(x => x.trim()).filter(x => x.length > 0),
+                    "feedback_instructions": "",
+                    "fallback_response": ""
+                };
+
+                // Disable the button:
+                this.suggestCriteriaButton.disabled = true;
+                this.suggestCriteriaButton.innerHTML = "Suggesting...";
+
+                fetch(`${endpoint}/assignments/suggest/criteria`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
                 })
-                .catch((error) => {
-                    console.error('Error:', error);
-                    notyf.error("There was an error creating the question.");
-                    submitButton.disabled = false;
-                });
-        });
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(response)
+                        }
+                        return response.json()
+                    })
+                    .then(response => {
+                        this.suggestCriteriaButton.disabled = false;
+                        this.suggestCriteriaButton.innerHTML = "Auto-suggest criteria";
+                        this.suggestCriteriaStaging.classList.remove("hidden");
+                        this.stagingCriteriaText.innerText = response.suggested_criteria.join("\n");
+                        this.acceptCriteriaButton.addEventListener("click", () => {
+                            this.criteriaInput.value = response.suggested_criteria.join("\n");
+                            this.suggestCriteriaStaging.classList.add("hidden");
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        notyf.error("There was an error suggesting criteria.");
+                        this.suggestCriteriaButton.disabled = false;
+                        this.suggestCriteriaButton.innerHTML = "Auto-suggest criteria";
+                    });
+            }
 
+            suggestQuestion() {
+                const isValid = this.validateFields();
+                if (!isValid) {
+                    return;
+                }
 
+                const headers = {
+                    'assignment-creation-secret': document.getElementById("secret").value,
+                    'Content-Type': 'application/json',
+                };
 
+                const payload = {
+                    "student_prompt": document.getElementById("question").value.trim(),
+                    "feedback_requirements": document.getElementById("criteria").value.split("\n")
+                        .map(x => x.trim()).filter(x => x.length > 0),
+                    "feedback_instructions": "",
+                    "fallback_response": ""
+                };
+
+                // Disable the button:
+                this.suggestQuestionButton.disabled = true;
+                this.suggestQuestionButton.innerHTML = "Suggesting...";
+
+                fetch(`${endpoint}/assignments/suggest/question`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(payload)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(response)
+                        }
+                        return response.json()
+                    })
+                    .then(response => {
+                        // document.querySelector("#question").value = response.suggested_question;
+                        this.suggestQuestionStaging.classList.remove("hidden");
+                        this.stagingQuestionText.innerText = response.suggested_question;
+                        this.acceptQuestionButton.addEventListener("click", () => {
+                            this.questionInput.value = response.suggested_question;
+                            this.suggestQuestionStaging.classList.add("hidden");
+                        });
+                        this.suggestQuestionButton.disabled = false;
+                        this.suggestQuestionButton.innerHTML = "Auto-suggest question";
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        notyf.error("There was an error suggesting a question.");
+                        this.suggestQuestionButton.disabled = false;
+                        this.suggestQuestionButton.innerHTML = "Auto-suggest question";
+                    });
+            }
+        }
+
+        const api = new LLM4EduAPI();
 
     </script>
 

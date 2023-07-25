@@ -38,11 +38,7 @@ class JSONFileAssignmentStore(AssignmentStore):
                 json.dump({}, f)
         with open(self._filename, "r") as f:
             assignments = {k: Assignment.parse_obj(v) for k, v in json.load(f).items()}
-
-        print(assignments, flush=True)
         assignments[key] = value
-        print(assignments, flush=True)
-
         with open(self._filename, "w") as f:
             json.dump({k: dict(v) for k, v in assignments.items()}, f)
 

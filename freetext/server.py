@@ -1,6 +1,6 @@
 from functools import lru_cache
 import pathlib
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -9,22 +9,18 @@ from mangum import Mangum
 from .assignment_stores import (
     AssignmentStore,
     InMemoryAssignmentStore,
-    # JSONFileAssignmentStore,
+    JSONFileAssignmentStore,
 )
 from .assignment_stores.DynamoAssignmentStore import DynamoAssignmentStore
 from .config import ApplicationSettings
 from .response_stores.ResponseStore import (
     ResponseStore,
     InMemoryResponseStore,
-    # JSONFileResponseStore,
 )
 from .response_stores.DynamoResponseStore import DynamoResponseStore
 
 from .feedback_providers.FeedbackProvider import FeedbackProvider
-from .feedback_providers.OpenAIFeedbackProvider import (
-    # OpenAICompletionBasedFeedbackProvider,
-    OpenAIChatBasedFeedbackProvider,
-)
+from .feedback_providers.OpenAIFeedbackProvider import OpenAIChatBasedFeedbackProvider
 from .llm4text_types import (
     Assignment,
     AssignmentID,
@@ -124,10 +120,7 @@ def get_commons():
     config = ApplicationSettings()
     return Commons(
         feedback_router=FeedbackRouter(
-            [
-                # OpenAICompletionBasedFeedbackProvider(),
-                OpenAIChatBasedFeedbackProvider()
-            ],
+            [OpenAIChatBasedFeedbackProvider()],
             assignment_store=DynamoAssignmentStore(
                 aws_access_key_id=config.aws_access_key_id,
                 aws_secret_access_key=config.aws_secret_access_key,
@@ -140,6 +133,7 @@ def get_commons():
                 aws_region=config.aws_region,
                 table_name=config.responses_table,
             ),
+            # JSONFileAssignmentStore("assignments.json"),
         )
     )
 
@@ -226,17 +220,91 @@ async def new_assignment(
     Create a new assignment.
 
     """
-    print(assignment_creation_secret, ApplicationSettings().assignment_creation_secret)
     if assignment_creation_secret != ApplicationSettings().assignment_creation_secret:
         raise HTTPException(status_code=401, detail="Invalid assignment creation.")
 
     return commons.feedback_router._assignment_store.new_assignment(assignment)
 
 
+# AssignmentReviewRequest definition:
+class AssignmentCriteriaReviewRequest(Assignment):
+    ...
+
+
+class AssignmentCriteriaReviewResponse(Assignment):
+    suggested_criteria: List[str]
+
+
+class AssignmentQuestionReviewRequest(Assignment):
+    ...
+
+
+class AssignmentQuestionReviewResponse(Assignment):
+    suggested_question: str
+
+
+@assignment_router.post("/suggest/criteria")
+async def review_criteria(
+    assignment_review_request: AssignmentCriteriaReviewRequest,
+    commons: Annotated[Commons, Depends(get_commons)],
+    assignment_creation_secret: str = Header(None),
+) -> AssignmentCriteriaReviewResponse:
+    """
+    Review an assignment, providing instructor-facing guidance on criteria.
+
+    """
+    if assignment_creation_secret != ApplicationSettings().assignment_creation_secret:
+        raise HTTPException(status_code=401, detail="Invalid token.")
+
+    # TODO: Should delegate to first feedback provider that supports review.
+    new_crits = await commons.feedback_router._feedback_providers[0].suggest_criteria(
+        assignment_review_request
+    )
+    response = AssignmentCriteriaReviewResponse(
+        **assignment_review_request.dict(), suggested_criteria=new_crits
+    )
+    return response
+
+
+@assignment_router.post("/suggest/question")
+async def review_question(
+    assignment_review_request: AssignmentQuestionReviewRequest,
+    commons: Annotated[Commons, Depends(get_commons)],
+    assignment_creation_secret: str = Header(None),
+) -> AssignmentQuestionReviewResponse:
+    """
+    Review an assignment, providing instructor-facing guidance on question.
+
+    """
+    if assignment_creation_secret != ApplicationSettings().assignment_creation_secret:
+        raise HTTPException(status_code=401, detail="Invalid token.")
+
+    # TODO: Should delegate to first feedback provider that supports review.
+    new_question = await commons.feedback_router._feedback_providers[
+        0
+    ].suggest_question(assignment_review_request)
+    response = AssignmentQuestionReviewResponse(
+        **assignment_review_request.dict(), suggested_question=new_question
+    )
+    return response
+
+
 @app_router.get("/")
 async def app_get():
     templates = pathlib.Path(__file__).parent / "templates"
     return HTMLResponse(open(templates / "simple.html").read())
+
+
+@router.get("/")
+async def root_get():
+    templates = pathlib.Path(__file__).parent / "templates"
+    return HTMLResponse(open(templates / "paper.html").read())
+
+
+@router.get("/paper")
+async def paper_get():
+    templates = pathlib.Path(__file__).parent / "templates"
+    return HTMLResponse(open(templates / "paper.html").read())
 
 
 @app_router.get("/assignments/{assignment_id}")

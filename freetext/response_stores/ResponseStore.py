@@ -22,7 +22,8 @@ class InMemoryResponseStore(ResponseStore):
         submission: Submission,
         all_feedback: list[Feedback],
     ):
-        self._responses[(assignment, submission)] = all_feedback
+        pass
+        # self._responses[(assignment, submission)] = all_feedback
 
 
 __all__ = [

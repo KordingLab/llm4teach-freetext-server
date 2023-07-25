@@ -20,6 +20,18 @@ class FeedbackProvider(Protocol):
 
         raise NotImplementedError()
 
+    async def suggest_criteria(self, assignment: Assignment) -> List[str]:
+        """
+        Suggest an improvement to the set of criteria for a given assignment.
+        """
+        raise NotImplementedError()
+
+    async def suggest_question(self, Assignment) -> str:
+        """
+        Suggest an improvement to the question for a given assignment.
+        """
+        raise NotImplementedError()
+
 
 class UnderTenWordFinder(FeedbackProvider):
     """
