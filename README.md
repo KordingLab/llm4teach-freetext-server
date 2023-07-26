@@ -8,7 +8,7 @@ A LLM-guided feedback tool that guides freeform essay responses, for educational
 poetry install
 ```
 
-Before you can use the server, you must either (1) change the assignment and response stores in `server.py` to run locally (e.g., JSON stores), or (2) update the AWS credentials in the `config.py` file. Note that no `config.py` is provided; **you must create a new file.** But we do provide a [`config.example.py`](config.example.py) file that you can use as a template. See that file for itemwise documentation of the configuration options.
+Before you can use the server, you must either (1) change the assignment and response stores in `server.py` to run locally (e.g., JSON stores), or (2) update the AWS credentials in the `config.py` file. Note that no `config.py` is provided; **you must create a new file.** But we do provide a [`config.example.py`](freetext/config.example.py) file that you can use as a template. See that file for itemwise documentation of the configuration options.
 
 ## Usage
 
