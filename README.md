@@ -2,6 +2,7 @@
 
 A LLM-guided feedback tool that guides freeform essay responses, for educational use.
 
+
 ## Installation
 
 ```bash
@@ -28,5 +29,22 @@ poetry run uvicorn freetext.server:app --port 9900
 
 See the manuscript for examples.
 
+
+
+## Our Paper 
+https://arxiv.org/abs/2308.02439
+
+If this work is useful to your research, please cite the following:
+
+```bibtex
+@misc{matelsky2023large,
+    title={A large language model-assisted education tool to provide feedback on open-ended responses}, 
+    author={Jordan K. Matelsky and Felipe Parodi and Tony Liu and Richard D. Lange and Konrad P. Kording},
+    year={2023},
+    eprint={2308.02439},
+    archivePrefix={arXiv},
+    primaryClass={cs.CY}
+}
+```
 
 <hr /><p align='center'><small>Made with 💚 at <a href='https://kordinglab.com/'> the Kording Lab <img alt='KordingLab.com' align='center' src='https://github.com/KordingLab/chatify-server/assets/693511/39f519fe-b05d-43fb-a5d4-f6792de1dbb6' height='32px'></a></small></p>
