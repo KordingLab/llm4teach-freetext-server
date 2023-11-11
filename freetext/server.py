@@ -8,6 +8,7 @@ from mangum import Mangum
 
 from freetext.assignment_stores import AssignmentStore, create_assignment_store
 from freetext.response_stores import ResponseStore, create_response_store
+from freetext.prompt_stores import PromptStore, create_prompt_store
 from .config import ApplicationSettings
 from .feedback_providers.FeedbackProvider import FeedbackProvider
 from .feedback_providers.OpenAIFeedbackProvider import OpenAIChatBasedFeedbackProvider
@@ -106,7 +107,11 @@ def get_commons():
         feedback_router=FeedbackRouter(
             assignment_store=create_assignment_store(config.assignment_store),
             response_store=create_response_store(config.response_store),
-            feedback_providers=[OpenAIChatBasedFeedbackProvider()],
+            feedback_providers=[
+                OpenAIChatBasedFeedbackProvider(
+                    create_prompt_store(config.prompt_store)
+                )
+            ],
         )
     )
 

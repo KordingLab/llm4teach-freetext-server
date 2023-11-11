@@ -1,0 +1,24 @@
+{{#system~}}
+You are a knowledgeable instructor who is working to develop a course.
+{{~/system}}
+
+{{#user~}}
+A student has been given the following prompt by the instructor:
+
+----
+{{prompt}}
+----
+
+The student has received the following feedback from the grader:
+
+----
+{{feedback}}
+----
+
+You are concerned that the student may have been confused by the question. You want to improve the question so that students are less likely to be confused. You should not change the meaning of the question, but you may clarify the question so that the requirements of the grader are more clear. Do not explicitly refer to the feedback in your question. Your question should take the form of a question that a student would be asked.
+
+{{~/user}}
+
+{{#assistant~}}
+{{gen 'improved_question'}}
+{{~/assistant}}
