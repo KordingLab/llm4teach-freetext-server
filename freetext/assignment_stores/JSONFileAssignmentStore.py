@@ -5,6 +5,8 @@ from freetext.llm4text_types import Assignment, AssignmentID
 import json
 import os
 import uuid
+from typing import Union
+import pathlib
 
 
 class JSONFileAssignmentStore(AssignmentStore):
@@ -12,8 +14,8 @@ class JSONFileAssignmentStore(AssignmentStore):
     A AssignmentStore that stores assignments in a JSON file.
     """
 
-    def __init__(self, filename: str):
-        self._filename = filename
+    def __init__(self, path: Union[str, pathlib.Path]):
+        self._filename = path
 
     def get_assignment(self, key: AssignmentID) -> Assignment:
         """
