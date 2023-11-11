@@ -6,19 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from mangum import Mangum
 
-from .assignment_stores import (
-    AssignmentStore,
-    InMemoryAssignmentStore,
-    JSONFileAssignmentStore,
-)
-from .assignment_stores.DynamoAssignmentStore import DynamoAssignmentStore
+from freetext.assignment_stores import AssignmentStore, create_assignment_store
+from freetext.response_stores import ResponseStore, create_response_store
 from .config import ApplicationSettings
-from .response_stores.ResponseStore import (
-    ResponseStore,
-    InMemoryResponseStore,
-)
-from .response_stores.DynamoResponseStore import DynamoResponseStore
-
 from .feedback_providers.FeedbackProvider import FeedbackProvider
 from .feedback_providers.OpenAIFeedbackProvider import OpenAIChatBasedFeedbackProvider
 from .llm4text_types import (
@@ -39,9 +29,9 @@ class FeedbackRouter:
 
     def __init__(
         self,
+        assignment_store: AssignmentStore,
+        response_store: ResponseStore,
         feedback_providers: Optional[list[FeedbackProvider]] = None,
-        assignment_store: Optional[AssignmentStore] = None,
-        response_store: Optional[ResponseStore] = None,
         fallback_feedback_provider: Optional[FeedbackProvider] = None,
     ):
         """
@@ -53,15 +43,9 @@ class FeedbackRouter:
             assignment_store: An assignment store to use.
 
         """
+        self._assignment_store = assignment_store
+        self._response_store = response_store
         self._feedback_providers = feedback_providers or []
-        self._assignment_store = (
-            assignment_store
-            if (assignment_store is not None)
-            else InMemoryAssignmentStore()
-        )
-        self._response_store = (
-            response_store if (response_store is not None) else InMemoryResponseStore()
-        )
         self._fallback_feedback_provider = fallback_feedback_provider
 
     def add_feedback_provider(self, feedback_provider: FeedbackProvider) -> None:
@@ -120,20 +104,9 @@ def get_commons():
     config = ApplicationSettings()
     return Commons(
         feedback_router=FeedbackRouter(
-            [OpenAIChatBasedFeedbackProvider()],
-            assignment_store=DynamoAssignmentStore(
-                aws_access_key_id=config.aws_access_key_id,
-                aws_secret_access_key=config.aws_secret_access_key,
-                aws_region=config.aws_region,
-                table_name=config.assignments_table,
-            ),
-            response_store=DynamoResponseStore(
-                aws_access_key_id=config.aws_access_key_id,
-                aws_secret_access_key=config.aws_secret_access_key,
-                aws_region=config.aws_region,
-                table_name=config.responses_table,
-            ),
-            # JSONFileAssignmentStore("assignments.json"),
+            assignment_store=create_assignment_store(config.assignment_store),
+            response_store=create_response_store(config.response_store),
+            feedback_providers=[OpenAIChatBasedFeedbackProvider()],
         )
     )
 
