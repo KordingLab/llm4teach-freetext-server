@@ -46,9 +46,12 @@ def create_response_store(config: ResponseStoreConfig) -> ResponseStore:
 
 __all__ = [
     "ResponseStore",
-    "InMemoryResponseStore",
-    "JSONFileResponseStore",
-    "DynamoResponseStore",
     "ResponseStoreConfig",
+    "InMemoryResponseStore",
+    "InMemoryResponseStoreConfig",
+    "JSONFileResponseStore",
+    "JSONResponseStoreConfig",
+    "DynamoResponseStore",
+    "DynamoResponseStoreConfig",
     "create_response_store",
 ]

@@ -48,9 +48,12 @@ def create_assignment_store(config: AssignmentStoreConfig) -> AssignmentStore:
 
 __all__ = [
     "AssignmentStore",
-    "InMemoryAssignmentStore",
-    "JSONFileAssignmentStore",
-    "DynamoAssignmentStore",
     "AssignmentStoreConfig",
+    "InMemoryAssignmentStore",
+    "InMemoryAssignmentStoreConfig",
+    "JSONFileAssignmentStore",
+    "JSONAssignmentStoreConfig",
+    "DynamoAssignmentStore",
+    "DynamoAssignmentStoreConfig",
     "create_assignment_store",
 ]
