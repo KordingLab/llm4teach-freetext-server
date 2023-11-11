@@ -30,14 +30,20 @@ class TestPlainTextPromptStore(unittest.TestCase):
     def test_addition_and_deletion_of_files(self):
         """Test adding and deleting files updates keys and filesystem."""
         key, content = "a.b.c", "This is a test prompt."
-        self.assertFalse(pathlib.Path(self.test_dir).joinpath("a", "b", "c.txt").exists())
+        self.assertFalse(
+            pathlib.Path(self.test_dir).joinpath("a", "b", "c.txt").exists()
+        )
         self.store.set_prompt(key, content)
-        self.assertTrue(pathlib.Path(self.test_dir).joinpath("a", "b", "c.txt").exists())
+        self.assertTrue(
+            pathlib.Path(self.test_dir).joinpath("a", "b", "c.txt").exists()
+        )
         self.assertEqual(len(self.store._keys), 1)
         self.assertIn(key, self.store._keys)
         self.assertEqual(self.store.get_prompt(key), content)
         del self.store[key]
-        self.assertFalse(pathlib.Path(self.test_dir).joinpath("a", "b", "c.txt").exists())
+        self.assertFalse(
+            pathlib.Path(self.test_dir).joinpath("a", "b", "c.txt").exists()
+        )
         self.assertEqual(len(self.store._keys), 0)
         self.assertNotIn(key, self.store._keys)
         with self.assertRaises(FileNotFoundError):
@@ -69,7 +75,9 @@ class TestPlainTextPromptStore(unittest.TestCase):
 
     def test_value_error_on_wrong_extension(self):
         with self.assertRaises(ValueError):
-            self.store._add_file(pathlib.Path(self.test_dir).joinpath("a", "b", "c.data"))
+            self.store._add_file(
+                pathlib.Path(self.test_dir).joinpath("a", "b", "c.data")
+            )
 
     def test_cache_invalidated_on_set(self):
         key, content = "a.b.c", "This is a test prompt."

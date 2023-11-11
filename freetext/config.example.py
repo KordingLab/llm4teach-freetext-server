@@ -1,6 +1,7 @@
 from pydantic import BaseSettings, Field
 from freetext.assignment_stores import AssignmentStoreConfig
 from freetext.response_stores import ResponseStoreConfig
+from freetext.prompt_stores import PromptStoreConfig
 
 
 class OpenAIConfig(BaseSettings):
@@ -21,3 +22,4 @@ class ApplicationSettings(BaseSettings):
     # assignment_store: AssignmentStoreConfig = InMemoryAssignmentStoreConfig()
     assignment_store: AssignmentStoreConfig = Field(..., discriminator="type")
     response_store: ResponseStoreConfig = Field(..., discriminator="type")
+    prompt_store: PromptStoreConfig = Field(..., discriminator="type")

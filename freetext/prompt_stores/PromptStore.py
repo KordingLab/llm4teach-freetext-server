@@ -39,4 +39,3 @@ class InMemoryPromptStore(PromptStore):
 
     def __contains__(self, key: PromptID) -> bool:
         return key in self._prompts
-
