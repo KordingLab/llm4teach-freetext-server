@@ -38,9 +38,7 @@ Be particularly mindful of scientific rigor issues including confusing correlati
 
 Do not say "Keep up the good work" or other encouragement "fluff." Write only the response to the student; do not write any other text.
 
-{{audience_caveat}}
-
-{{fact_check_caveat}}
+You should also fact-check the student's response. If the student's response is factually incorrect, you should provide feedback on the incorrect statements.
 {{~/user}}
 
 {{#assistant~}}

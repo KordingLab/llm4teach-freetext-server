@@ -25,6 +25,7 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
             self.config = config_override
         else:
             self.config = OpenAIConfig()
+        guidance.llm = guidance.llms.OpenAI(**self.config.dict())
 
     async def get_feedback(
         self, submission: Submission, assignment: Assignment
@@ -40,9 +41,6 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
 
         # set the default language model used to execute guidance programs
         try:
-            openai_kwargs = self.config.dict()
-            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
-
             grader = guidance.Program(self.prompts.get_prompt("grader.feedback"))
 
             response = submission.submission_string
@@ -52,8 +50,6 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
                 criteria="\n".join(
                     [f"     * {f}" for f in assignment.feedback_requirements]
                 ),
-                audience_caveat="",  # You should provide feedback keeping in mind that the student is a Graduate Student and should be graded accordingly.
-                fact_check_caveat="You should also fact-check the student's response. If the student's response is factually incorrect, you should provide feedback on the incorrect statements.",
             )
 
             return [
@@ -81,9 +77,6 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
 
         """
         try:
-            openai_kwargs = self.config.dict()
-            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
-
             grader = guidance.Program(self.prompts.get_prompt("grader.draft_criteria"))
 
             response = assignment.student_prompt
@@ -119,9 +112,6 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
 
         """
         try:
-            openai_kwargs = self.config.dict()
-            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
-
             draft_response = guidance.Program(
                 self.prompts.get_prompt("grader.draft_response")
             )

@@ -7,6 +7,7 @@ from freetext.prompt_stores import PromptStoreConfig, PlainTextPromptStoreConfig
 class OpenAIConfig(BaseSettings):
     token: str = "sk-###"
     organization: str = "org-###"
+    model: str = "gpt-3.5-turbo"
 
 
 class ApplicationSettings(BaseSettings):
