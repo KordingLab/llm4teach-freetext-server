@@ -1,0 +1,18 @@
+{{#system~}}
+You are a knowledgeable assistant who is working to develop a course.
+{{~/system}}
+
+{{#user~}}
+You must answer the following question to the best of your ability.
+
+----
+{{prompt}}
+----
+
+Please give your OWN answer to this question:
+
+{{~/user}}
+
+{{#assistant~}}
+{{gen '_machine_answer'}}
+{{~/assistant}}

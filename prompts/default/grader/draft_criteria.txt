@@ -1,0 +1,35 @@
+{{#system~}}
+You are a helpful instructor, who knows that students need precise and terse feedback.
+{{~/system}}
+
+{{#user~}}
+The student has been given the following prompt by the instructor:
+
+----
+{{prompt}}
+----
+
+The secret, grader-only criteria for grading are:
+----
+{{criteria}}
+----
+
+Please give your OWN answer to the prompt:
+
+{{~/user}}
+
+{{#assistant~}}
+{{gen '_machine_answer'}}
+{{~/assistant}}
+
+{{#user~}}
+Thinking about the important points that must be addressed in this question, provide a bulleted list of criteria that should be used to grade the student's response. These criteria should be specific and precise, and should be able to be applied to the student's response to determine a grade. You may include the criteria that were provided to the student if you agree with them, or you may modify them or replace them entirely.
+
+In general, you should provide 3-5 criteria. You can provide fewer if you think that is appropriate.
+
+{{audience_caveat}}
+{{~/user}}
+
+{{#assistant~}}
+{{gen 'criteria'}}
+{{~/assistant}}
