@@ -1,5 +1,5 @@
 from typing import List, Optional
-import guidance
+from guidance import models, gen, user, assistant, system
 
 from ..config import OpenAIConfig
 from ..feedback_providers.FeedbackProvider import FeedbackProvider
@@ -7,7 +7,6 @@ from ..llm4text_types import Assignment, Feedback, Submission
 
 
 class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
-
     """
     A feedback provider that transacts with the OpenAI API for student
     responses. Uses Microsoft's `guidance` tool for feedback curation. This
@@ -16,11 +15,16 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
     more cost-effective API use, at the cost of a more constrained prompt.
     """
 
-    def __init__(self, config_override: Optional[OpenAIConfig] = None):
+    def __init__(
+        self,
+        config_override: Optional[OpenAIConfig] = None,
+        model: str = "gpt-4o-mini",
+    ):
         if config_override is not None:
             self.config = config_override
         else:
             self.config = OpenAIConfig()
+        self._model = model
 
     async def get_feedback(
         self, submission: Submission, assignment: Assignment
@@ -37,39 +41,46 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
         # set the default language model used to execute guidance programs
         try:
             openai_kwargs = self.config.dict()
-            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
+            lm = models.OpenAI(self._model, api_key=openai_kwargs["token"])
 
-            grader = guidance.Program(
-                """
-            {{#system~}}
-            You are a helpful instructor, who knows that students need precise and terse feedback. Students are most motivated if you are engaging and remain positive, but it is more important to be honest and accurate than cheerful.
-            {{~/system}}
+            with system():
+                lm += "You are a helpful instructor, who knows that students need precise and terse feedback. Students are most motivated if you are engaging and remain positive, but it is more important to be honest and accurate than cheerful."
 
-            {{#user~}}
-            The student has been given the following prompt by the instructor:
+            with user():
+                lm += (
+                    """The student has been given the following prompt by the instructor:
 
             ----
-            {{prompt}}
+            """
+                    + assignment.student_prompt
+                    + """
             ----
 
             The secret, grader-only criteria for grading are:
             ----
-            {{criteria}}
+            """
+                    + "\n".join(
+                        [f"     * {f}" for f in assignment.feedback_requirements]
+                    )
+                    + """
             ----
 
             Please give your OWN answer to the prompt:
 
-            {{~/user}}
+            """
+                )
 
-            {{#assistant~}}
-            {{gen '_machine_answer'}}
-            {{~/assistant}}
+            with assistant():
+                lm += gen("_machine_answer")
 
-            {{#user~}}
-            The complete student response is as follows:
+            with user():
+                lm += (
+                    """The complete student response is as follows:
             ----
 
-            {{response}}
+            """
+                    + submission.submission_string
+                    + """
 
             ----
 
@@ -81,31 +92,16 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
 
             Do not say "Keep up the good work" or other encouragement "fluff." Write only the response to the student; do not write any other text.
 
-            {{audience_caveat}}
-
-            {{fact_check_caveat}}
-            {{~/user}}
-
-            {{#assistant~}}
-            {{gen 'feedback'}}
-            {{~/assistant}}
             """
-            )
+                    + "You should also fact-check the student's response. If the student's response is factually incorrect, you should provide feedback on the incorrect statements."
+                )
 
-            response = submission.submission_string
-            feedback = grader(
-                response=response,
-                prompt=assignment.student_prompt,
-                criteria="\n".join(
-                    [f"     * {f}" for f in assignment.feedback_requirements]
-                ),
-                audience_caveat="",  # You should provide feedback keeping in mind that the student is a Graduate Student and should be graded accordingly.
-                fact_check_caveat="You should also fact-check the student's response. If the student's response is factually incorrect, you should provide feedback on the incorrect statements.",
-            )
+            with assistant():
+                lm += gen("feedback")
 
             return [
                 Feedback(
-                    feedback_string="\n" + feedback["feedback"],
+                    feedback_string="\n" + lm["feedback"],
                     source="OpenAIFeedbackProvider",
                     location=(0, len(submission.submission_string)),
                 )
@@ -128,60 +124,61 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
 
         """
         try:
-            openai_kwargs = self.config.dict()
-            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
+            openai_kwargs = self.config.model_dump()
+            lm = models.OpenAI(self._model, api_key=openai_kwargs["token"])
 
-            grader = guidance.Program(
-                """
-            {{#system~}}
-            You are a helpful instructor, who knows that students need precise and terse feedback.
-            {{~/system}}
+            with system():
+                lm += "You are a helpful instructor, who knows that students need precise and terse feedback."
 
-            {{#user~}}
-            The student has been given the following prompt by the instructor:
+            with user():
+                lm += (
+                    """The student has been given the following prompt by the instructor:
 
             ----
-            {{prompt}}
+            """
+                    + assignment.student_prompt
+                    + """
             ----
 
             The secret, grader-only criteria for grading are:
+
             ----
-            {{criteria}}
+            """
+                    + "\n".join(
+                        [f"     * {f}" for f in assignment.feedback_requirements]
+                    )
+                    + """
             ----
 
             Please give your OWN answer to the prompt:
 
-            {{~/user}}
+                """
+                )
 
-            {{#assistant~}}
-            {{gen '_machine_answer'}}
-            {{~/assistant}}
+            with assistant():
+                lm += gen("_machine_answer")
 
-            {{#user~}}
+            with user():
+                lm += (
+                    """The complete student response is as follows:
+            ----
+
+                """
+                    + assignment.student_prompt
+                    + """
+            ----
+
             Thinking about the important points that must be addressed in this question, provide a bulleted list of criteria that should be used to grade the student's response. These criteria should be specific and precise, and should be able to be applied to the student's response to determine a grade. You may include the criteria that were provided to the student if you agree with them, or you may modify them or replace them entirely.
 
             In general, you should provide 3-5 criteria. You can provide fewer if you think that is appropriate.
 
-            {{audience_caveat}}
-            {{~/user}}
-
-            {{#assistant~}}
-            {{gen 'criteria'}}
-            {{~/assistant}}
             """
-            )
+                )
 
-            response = assignment.student_prompt
-            criteria = grader(
-                response=response,
-                prompt=assignment.student_prompt,
-                criteria="\n".join(
-                    [f"     * {f}" for f in assignment.feedback_requirements]
-                ),
-                audience_caveat="",
-            )
+            with assistant():
+                lm += gen("criteria")
 
-            return criteria["criteria"].split("\n")
+            return lm["criteria"].split("\n")
         except Exception as e:
             print(e)
             return []
@@ -205,75 +202,68 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
         """
         try:
             openai_kwargs = self.config.dict()
-            guidance.llm = guidance.llms.OpenAI("gpt-3.5-turbo", **openai_kwargs)
+            lm = models.OpenAI(self._model, api_key=openai_kwargs["token"])
 
-            draft_response = guidance.Program(
-                """
-            {{#system~}}
-            You are a knowledgeable assistant who is working to develop a course.
-            {{~/system}}
+            with system():
+                lm += "You are a knowledgeable assistant who is working to develop a course."
 
-            {{#user~}}
-            You must answer the following question to the best of your ability.
+            with user():
+                lm += (
+                    """You must answer the following question to the best of your ability.
 
             ----
-            {{prompt}}
+            """
+                    + assignment.student_prompt
+                    + """
             ----
 
             Please give your OWN answer to this question:
-
-            {{~/user}}
-
-            {{#assistant~}}
-            {{gen '_machine_answer'}}
-            {{~/assistant}}
             """
-            )
-            criteria = draft_response(prompt=assignment.student_prompt)
+                )
+
+            with assistant():
+                lm += gen("_machine_answer")
 
             feedback = await self.get_feedback(
                 Submission(
-                    submission_string=criteria["_machine_answer"],
+                    submission_string=lm["_machine_answer"],
                     assignment_id="_DRAFT_",
                 ),
                 assignment,
             )
 
-            question_improver = guidance.Program(
-                """
-            {{#system~}}
-            You are a knowledgeable instructor who is working to develop a course.
-            {{~/system}}
+            lm = models.OpenAI(self._model, api_key=openai_kwargs["token"])
 
-            {{#user~}}
-            A student has been given the following prompt by the instructor:
+            with system():
+                lm += "You are a knowledgeable instructor who is working to develop a course."
+
+            with user():
+                lm += (
+                    """A student has been given the following prompt by the instructor:
 
             ----
-            {{prompt}}
+            """
+                    + assignment.student_prompt
+                    + """
             ----
 
             The student has received the following feedback from the grader:
 
             ----
-            {{feedback}}
+            """
+                    + "\n".join([f.feedback_string for f in feedback])
+                    + """
             ----
 
             You are concerned that the student may have been confused by the question. You want to improve the question so that students are less likely to be confused. You should not change the meaning of the question, but you may clarify the question so that the requirements of the grader are more clear. Do not explicitly refer to the feedback in your question. Your question should take the form of a question that a student would be asked.
 
-            {{~/user}}
-
-            {{#assistant~}}
-            {{gen 'improved_question'}}
-            {{~/assistant}}
             """
-            )
+                )
 
-            improved_question = question_improver(
-                prompt=assignment.student_prompt,
-                feedback="\n".join([f.feedback_string for f in feedback]),
-            )
+            with assistant():
+                lm += gen("improved_question")
 
-            return improved_question["improved_question"].lstrip('"').rstrip('"')
+            return lm["improved_question"].lstrip('"').rstrip('"')
         except Exception as e:
             print(e)
             return assignment.student_prompt
