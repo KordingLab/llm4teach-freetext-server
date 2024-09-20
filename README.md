@@ -2,7 +2,6 @@
 
 A LLM-guided feedback tool that guides freeform essay responses, for educational use.
 
-
 ## Installation
 
 ```bash
@@ -16,22 +15,21 @@ Before you can use the server, you must either (1) change the assignment and res
 For development server usage (with live reloads), run:
 
 ```bash
-poetry run uvicorn freetext.server:app --reload --port 9900
+uv run uvicorn freetext.server:app --reload --port 9900
 ```
 
 For production server usage, run:
 
 ```bash
-poetry run uvicorn freetext.server:app --port 9900
+uv run uvicorn freetext.server:app --port 9900
 ```
 
 ## Examples
 
 See the manuscript for examples.
 
+## Our Paper
 
-
-## Our Paper 
 https://arxiv.org/abs/2308.02439
 
 Full-resolution versions of all images and tables from this publication are available at https://llm4edu.experiments.kordinglab.com/paper.
@@ -44,7 +42,7 @@ If this work is useful to your research, please cite the following:
 
 ```bibtex
 @misc{matelsky2023large,
-    title={A large language model-assisted education tool to provide feedback on open-ended responses}, 
+    title={A large language model-assisted education tool to provide feedback on open-ended responses},
     author={Jordan K. Matelsky and Felipe Parodi and Tony Liu and Richard D. Lange and Konrad P. Kording},
     year={2023},
     eprint={2308.02439},
