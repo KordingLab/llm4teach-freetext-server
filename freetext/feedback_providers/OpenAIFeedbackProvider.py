@@ -18,7 +18,7 @@ class OpenAIChatBasedFeedbackProvider(FeedbackProvider):
     def __init__(
         self,
         config_override: Optional[OpenAIConfig] = None,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-5-mini",
     ):
         if config_override is not None:
             self.config = config_override
